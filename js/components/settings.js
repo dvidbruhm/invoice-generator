@@ -2,11 +2,12 @@ async function renderSettings() {
   const app = document.getElementById('app');
   showLoading();
   
-  const settings = await getAllSettings();
-  const defaults = getDefaultSettings();
-  const merged = { ...defaults, ...settings };
-  
-  app.innerHTML = `
+  try {
+    const settings = await getAllSettings();
+    const defaults = getDefaultSettings();
+    const merged = { ...defaults, ...settings };
+    
+    app.innerHTML = `
     <div class="page-header">
       <h1>Settings</h1>
       <p>Configure your invoice defaults</p>
@@ -253,6 +254,19 @@ async function renderSettings() {
   document.getElementById('logo-upload').addEventListener('change', handleLogoUpload);
   
   renderNav();
+  } catch (err) {
+    console.error('Error rendering settings:', err);
+    app.innerHTML = `
+      <div class="page-header">
+        <h1>Error</h1>
+        <p>Failed to load settings. Please try again.</p>
+      </div>
+      <div class="card">
+        <p style="color: var(--danger);">${escapeHTML(err.message)}</p>
+        <button class="btn btn-primary" onclick="location.reload()">Reload</button>
+      </div>
+    `;
+  }
 }
 
 async function saveSettingsForm() {

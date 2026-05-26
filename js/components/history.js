@@ -2,32 +2,46 @@ async function renderHistory() {
   const app = document.getElementById('app');
   showLoading();
   
-  const invoices = await getAllInvoices();
-  const settings = await getAllSettings();
-  const defaults = getDefaultSettings();
-  const mergedSettings = { ...defaults, ...settings };
-  
-  app.innerHTML = `
-    <div class="page-header">
-      <h1>Invoice History</h1>
-      <p>${invoices.length} invoice${invoices.length !== 1 ? 's' : ''}</p>
-    </div>
+  try {
+    const invoices = await getAllInvoices();
+    const settings = await getAllSettings();
+    const defaults = getDefaultSettings();
+    const mergedSettings = { ...defaults, ...settings };
     
-    <div class="search-bar">
-      <input type="text" id="search-input" placeholder="Search by client, invoice number, or date...">
-      <a href="#/create" class="btn btn-primary">New Invoice</a>
-    </div>
+    app.innerHTML = `
+      <div class="page-header">
+        <h1>Invoice History</h1>
+        <p>${invoices.length} invoice${invoices.length !== 1 ? 's' : ''}</p>
+      </div>
+      
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search by client, invoice number, or date...">
+        <a href="#/create" class="btn btn-primary">New Invoice</a>
+      </div>
+      
+      <div id="history-content">
+        ${invoices.length > 0 ? renderHistoryTable(invoices, mergedSettings) : renderEmptyState()}
+      </div>
+    `;
     
-    <div id="history-content">
-      ${invoices.length > 0 ? renderHistoryTable(invoices, mergedSettings) : renderEmptyState()}
-    </div>
-  `;
-  
-  document.getElementById('search-input').addEventListener('input', (e) => {
-    filterHistory(e.target.value, mergedSettings);
-  });
-  
-  renderNav();
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      filterHistory(e.target.value, mergedSettings);
+    });
+    
+    renderNav();
+  } catch (err) {
+    console.error('Error rendering history:', err);
+    app.innerHTML = `
+      <div class="page-header">
+        <h1>Error</h1>
+        <p>Failed to load invoice history. Please try again.</p>
+      </div>
+      <div class="card">
+        <p style="color: var(--danger);">${escapeHTML(err.message)}</p>
+        <button class="btn btn-primary" onclick="location.reload()">Reload</button>
+      </div>
+    `;
+  }
 }
 
 function renderHistoryTable(invoices, settings) {

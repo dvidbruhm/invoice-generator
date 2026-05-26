@@ -1,5 +1,3 @@
-const { jsPDF } = window.jspdf;
-
 function calculateTotals(lineItems, settings) {
   const subtotal = lineItems.reduce((sum, item) => {
     return sum + (parseFloat(item.rate) * parseFloat(item.hours));
@@ -487,6 +485,10 @@ function renderCorner(doc, invoice, settings, accent, margin, contentWidth, page
 }
 
 async function generatePDF(invoice, settings) {
+  if (!window.jspdf) {
+    throw new Error('jsPDF library not loaded. Please check your internet connection and reload the page.');
+  }
+  const { jsPDF } = window.jspdf;
   const doc = new jsPDF({
     orientation: 'portrait',
     unit: 'mm',

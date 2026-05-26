@@ -2,25 +2,26 @@ async function renderInvoiceForm(editId = null) {
   const app = document.getElementById('app');
   showLoading();
   
-  const settings = await getAllSettings();
-  const defaults = getDefaultSettings();
-  const mergedSettings = { ...defaults, ...settings };
-  
-  let invoice = null;
-  if (editId) {
-    invoice = await getInvoice(editId);
-  }
-  
-  const nextNum = editId ? { num: 0 } : await getNextInvoiceNumber();
-  const formattedNum = editId ? invoice.number : await formatInvoiceNumber(nextNum.num);
-  const today = new Date().toISOString().split('T')[0];
-  const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-  
-  const lineItems = invoice ? invoice.lineItems : [{ description: '', rate: '', hours: '' }];
-  const status = invoice ? (invoice.status || 'draft') : 'draft';
-  const currencySymbol = getCurrencySymbol(mergedSettings.currency);
-  
-  app.innerHTML = `
+  try {
+    const settings = await getAllSettings();
+    const defaults = getDefaultSettings();
+    const mergedSettings = { ...defaults, ...settings };
+    
+    let invoice = null;
+    if (editId) {
+      invoice = await getInvoice(editId);
+    }
+    
+    const nextNum = editId ? { num: 0 } : await getNextInvoiceNumber();
+    const formattedNum = editId ? invoice.number : await formatInvoiceNumber(nextNum.num);
+    const today = new Date().toISOString().split('T')[0];
+    const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    
+    const lineItems = invoice ? invoice.lineItems : [{ description: '', rate: '', hours: '' }];
+    const status = invoice ? (invoice.status || 'draft') : 'draft';
+    const currencySymbol = getCurrencySymbol(mergedSettings.currency);
+    
+    app.innerHTML = `
     <div class="page-header">
       <h1>${editId ? 'Edit Invoice' : 'New Invoice'}</h1>
       <p>${editId ? 'Update invoice details' : 'Fill in the details below'}</p>
@@ -155,6 +156,19 @@ async function renderInvoiceForm(editId = null) {
   
   attachFormListeners();
   renderNav();
+  } catch (err) {
+    console.error('Error rendering invoice form:', err);
+    app.innerHTML = `
+      <div class="page-header">
+        <h1>Error</h1>
+        <p>Failed to load the invoice form. Please try again.</p>
+      </div>
+      <div class="card">
+        <p style="color: var(--danger);">${escapeHTML(err.message)}</p>
+        <button class="btn btn-primary" onclick="location.reload()">Reload</button>
+      </div>
+    `;
+  }
 }
 
 function renderLineItemRow(item, index, settings) {

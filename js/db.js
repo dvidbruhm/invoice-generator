@@ -14,6 +14,7 @@ function openDB() {
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
       db = request.result;
+      db.onclose = () => { db = null; };
       resolve(db);
     };
     
