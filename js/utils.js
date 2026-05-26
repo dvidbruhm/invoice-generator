@@ -45,6 +45,6 @@ function getStatusBadge(status) {
   };
   const color = colors[status] || colors.draft;
   const bg = bgColors[status] || bgColors.draft;
-  const label = status.charAt(0).toUpperCase() + status.slice(1);
+  const label = (status || 'draft').charAt(0).toUpperCase() + (status || 'draft').slice(1);
   return `<span class="status-badge" style="color:${color};background:${bg};">${escapeHTML(label)}</span>`;
 }
