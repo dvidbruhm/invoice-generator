@@ -223,8 +223,11 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
       doc.rect(margin, bgTop, contentWidth, actualRowHeight, 'F');
     }
 
-    if (!isSidebar && item.date) {
-      const dateText = formatDate(item.date);
+    const dateFormat = settings.dateFormat || 'default';
+    const datePosition = settings.datePosition || 'rotated';
+    const dateText = item.date ? formatLineItemDate(item.date, dateFormat) : '';
+
+    if (datePosition === 'rotated' && !isSidebar && dateText) {
       doc.setFontSize(7);
       doc.setTextColor(150, 150, 150);
       const textW = doc.getTextWidth(dateText);
@@ -236,7 +239,17 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
     }
 
     const descTop = bgTop + (actualRowHeight - descBlockHeight) / 2 + lineHeightMm * 0.75;
-    doc.text(descLines, colX[0] + 2, descTop);
+    if (datePosition === 'inline' && dateText) {
+      doc.setFontSize(7);
+      doc.setTextColor(150, 150, 150);
+      doc.text(dateText, colX[0] + 2, descTop - 1.5);
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
+      if (isClassic) doc.setFont('times', 'normal');
+      doc.text(descLines, colX[0] + 2, descTop + 3);
+    } else {
+      doc.text(descLines, colX[0] + 2, descTop);
+    }
 
     const fontHeight = doc.getFontSize() * 0.3528;
     const otherBaseline = bgTop + actualRowHeight / 2 + fontHeight * 0.3;

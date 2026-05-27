@@ -852,7 +852,7 @@ function renderLivePreview(settings, invoice) {
       const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
       const bg = i % 2 === 0 ? '' : `style="background:#f8f8f8;"`;
       const descHtml = escapeHTML(item.description).replace(/\n/g, '<br>');
-      const dateLabel = item.date ? `<span style="font-size:0.75rem;color:var(--text-secondary);white-space:nowrap;">${escapeHTML(formatDate(item.date))}</span>` : '';
+      const dateLabel = item.date ? `<span style="font-size:0.75rem;color:var(--text-secondary);white-space:nowrap;">${escapeHTML(formatLineItemDate(item.date, settings.dateFormat || 'default'))}</span>` : '';
       return `<tr ${bg}>
         <td>${dateLabel}${dateLabel ? '<br>' : ''}${descHtml || '—'}</td>
         <td>${item.rate ? formatCurrency(parseFloat(item.rate), settings.currency) : '—'}</td>

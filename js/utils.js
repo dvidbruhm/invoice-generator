@@ -27,6 +27,24 @@ function formatDate(dateStr) {
   return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
+function formatLineItemDate(dateStr, format) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+
+  switch (format) {
+    case 'YYYY/MM/DD': return `${yyyy}/${mm}/${dd}`;
+    case 'YYYY-MM-DD': return `${yyyy}-${mm}-${dd}`;
+    case 'DD-MM-YYYY': return `${dd}-${mm}-${yyyy}`;
+    case 'DD/MM/YYYY': return `${dd}/${mm}/${yyyy}`;
+    case 'DD-MM': return `${dd}-${mm}`;
+    case 'DD/MM': return `${dd}/${mm}`;
+    default: return formatDate(dateStr);
+  }
+}
+
 function showLoading() {
   const app = document.getElementById('app');
   if (app) {

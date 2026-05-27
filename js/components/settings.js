@@ -134,6 +134,33 @@ async function renderSettings() {
       </details>
       
       <details class="card collapsible" open>
+        <summary class="card-title collapsible-toggle">Line Item Date Display</summary>
+        <div class="collapsible-content">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="date-format">Date Format</label>
+              <select id="date-format">
+                <option value="default" ${merged.dateFormat === 'default' ? 'selected' : ''}>Default (May 27, 2026)</option>
+                <option value="YYYY/MM/DD" ${merged.dateFormat === 'YYYY/MM/DD' ? 'selected' : ''}>YYYY/MM/DD</option>
+                <option value="YYYY-MM-DD" ${merged.dateFormat === 'YYYY-MM-DD' ? 'selected' : ''}>YYYY-MM-DD</option>
+                <option value="DD-MM-YYYY" ${merged.dateFormat === 'DD-MM-YYYY' ? 'selected' : ''}>DD-MM-YYYY</option>
+                <option value="DD/MM/YYYY" ${merged.dateFormat === 'DD/MM/YYYY' ? 'selected' : ''}>DD/MM/YYYY</option>
+                <option value="DD-MM" ${merged.dateFormat === 'DD-MM' ? 'selected' : ''}>DD-MM</option>
+                <option value="DD/MM" ${merged.dateFormat === 'DD/MM' ? 'selected' : ''}>DD/MM</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="date-position">Date Position (PDF)</label>
+              <select id="date-position">
+                <option value="rotated" ${merged.datePosition === 'rotated' ? 'selected' : ''}>Rotated in left margin</option>
+                <option value="inline" ${merged.datePosition === 'inline' ? 'selected' : ''}>Above description (inline)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </details>
+      
+      <details class="card collapsible" open>
         <summary class="card-title collapsible-toggle">Defaults</summary>
         <div class="collapsible-content">
           <div class="form-grid">
@@ -289,6 +316,8 @@ async function saveSettingsForm() {
       currency: document.getElementById('currency').value,
       taxTPS: document.getElementById('tax-tps').checked,
       taxTVQ: document.getElementById('tax-tvq').checked,
+      dateFormat: document.getElementById('date-format').value,
+      datePosition: document.getElementById('date-position').value,
       paymentTerms: document.getElementById('payment-terms').value,
       notes: document.getElementById('default-notes').value,
       labelInvoice: document.getElementById('label-invoice').value,

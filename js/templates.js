@@ -123,6 +123,8 @@ function getDefaultSettings() {
     labelDate: 'Date',
     labelDueDate: 'Due',
     labelTPS: 'TPS',
-    labelTVQ: 'TVQ'
+    labelTVQ: 'TVQ',
+    dateFormat: 'default',
+    datePosition: 'rotated'
   };
 }
