@@ -339,38 +339,34 @@ async function removeLogo() {
 
 function getTemplatePreviewHTML(templateId, accent) {
   const a = accent;
-  const light = `${a}15`;
-  const med = `${a}40`;
-  
-  const header = `<div class="tp-header" style="background:${a};"></div>`;
-  const headerText = `<div class="tp-header-text" style="color:${a};">Your Company</div>`;
-  const line = `<div class="tp-line" style="background:${a};"></div>`;
-  const thinLine = `<div class="tp-thin-line" style="background:${a};"></div>`;
   const row = `<div class="tp-row"><div class="tp-cell"></div><div class="tp-cell"></div><div class="tp-cell"></div></div>`;
   const rowAlt = `<div class="tp-row tp-row-alt"><div class="tp-cell"></div><div class="tp-cell"></div><div class="tp-cell"></div></div>`;
   const total = `<div class="tp-total"><div class="tp-total-bar" style="background:${a};"></div></div>`;
-  const corner = `<div class="tp-corner" style="background:${a};"></div>`;
-  const sidebar = `<div class="tp-sidebar" style="background:${a};"></div>`;
-  const border = `<div class="tp-border" style="border-color:${a};"></div>`;
-  
+  const metaLeft = `<div class="tp-meta"><div class="tp-meta-line"></div><div class="tp-meta-line short"></div></div>`;
+  const metaRight = `<div class="tp-meta" style="justify-content:flex-end;"><div class="tp-meta-line"></div><div class="tp-meta-line short"></div></div>`;
+
   const previews = {
     classic: `
-      ${headerText}
-      <div class="tp-meta"><div class="tp-meta-line"></div><div class="tp-meta-line short"></div></div>
-      ${line}
+      <div class="tp-header-text" style="color:${a};">Your Company</div>
+      ${metaLeft}
+      <div class="tp-classic-double">
+        <div class="tp-classic-line-thick" style="background:${a};"></div>
+        <div class="tp-classic-line-thin" style="background:${a};"></div>
+      </div>
       <div class="tp-body">${row}${rowAlt}${row}</div>
       ${total}
     `,
     modern: `
-      ${header}
-      ${headerText}
-      <div class="tp-meta"><div class="tp-meta-line"></div><div class="tp-meta-line short"></div></div>
+      <div class="tp-header tp-header-rounded" style="background:${a};"></div>
+      <div class="tp-header-text" style="color:${a};">Your Company</div>
+      ${metaLeft}
       <div class="tp-body">${row}${rowAlt}${row}</div>
       ${total}
     `,
     clean: `
-      ${headerText}
-      <div class="tp-meta" style="justify-content:flex-end;"><div class="tp-meta-line"></div><div class="tp-meta-line short"></div></div>
+      <div class="tp-header-text" style="color:${a};">Your Company</div>
+      ${metaRight}
+      <div class="tp-clean-dot" style="background:${a};"></div>
       <div class="tp-body">${row}${rowAlt}${row}</div>
       ${total}
     `,
@@ -379,14 +375,17 @@ function getTemplatePreviewHTML(templateId, accent) {
         <div class="tp-bold-title">Your Company</div>
         <div class="tp-bold-meta"></div>
       </div>
+      <div class="tp-bold-divider"></div>
       <div class="tp-body">${row}${rowAlt}${row}</div>
       ${total}
     `,
     elegant: `
       <div class="tp-elegant-header">
-        ${thinLine}
-        ${headerText}
-        ${thinLine}
+        <div class="tp-thin-line" style="background:${a};"></div>
+        <div class="tp-elegant-diamond" style="color:${a};"></div>
+        <div class="tp-header-text" style="color:${a};">Your Company</div>
+        <div class="tp-elegant-diamond" style="color:${a};"></div>
+        <div class="tp-thin-line" style="background:${a};"></div>
       </div>
       <div class="tp-body">${row}${rowAlt}${row}</div>
       ${total}
@@ -394,40 +393,51 @@ function getTemplatePreviewHTML(templateId, accent) {
     compact: `
       <div class="tp-compact-header">
         <span class="tp-compact-title" style="color:${a};">Your Co.</span>
-        <span class="tp-compact-meta"></span>
+        <div class="tp-compact-pill" style="background:${a};">INV</div>
       </div>
       <div class="tp-body">${row}${rowAlt}${row}</div>
       ${total}
     `,
     sidebar: `
       <div class="tp-sidebar-wrap">
-        ${sidebar}
+        <div class="tp-sidebar" style="background:${a};">
+          <div class="tp-sidebar-dot"></div>
+          <div class="tp-sidebar-dot"></div>
+          <div class="tp-sidebar-dot"></div>
+          <div class="tp-sidebar-accent-bar" style="background:rgba(255,255,255,0.3);"></div>
+        </div>
         <div class="tp-sidebar-content">
-          <div class="tp-meta"><div class="tp-meta-line"></div><div class="tp-meta-line short"></div></div>
+          ${metaLeft}
           <div class="tp-body">${row}${rowAlt}${row}</div>
           ${total}
         </div>
       </div>
     `,
     bordered: `
-      ${border}
+      <div class="tp-border" style="border-color:${a};"></div>
+      <div class="tp-bordered-dot tp-dot-tl" style="background:${a};"></div>
+      <div class="tp-bordered-dot tp-dot-tr" style="background:${a};"></div>
+      <div class="tp-bordered-dot tp-dot-bl" style="background:${a};"></div>
+      <div class="tp-bordered-dot tp-dot-br" style="background:${a};"></div>
       <div class="tp-bordered-inner">
-        ${headerText}
+        <div class="tp-header-text" style="color:${a};">Your Company</div>
         <div class="tp-meta"><div class="tp-meta-line"></div></div>
         <div class="tp-body">${row}${rowAlt}${row}</div>
         ${total}
       </div>
     `,
     subtle: `
-      ${headerText}
+      <div class="tp-header-text" style="color:${a};">Your Company</div>
       <div class="tp-subtle-line" style="background:${a};"></div>
+      <div class="tp-subtle-fade" style="color:${a};"></div>
       <div class="tp-meta"><div class="tp-meta-line"></div></div>
       <div class="tp-body">${row}${rowAlt}${row}</div>
       ${total}
     `,
     stripe: `
-      ${headerText}
+      <div class="tp-header-text" style="color:${a};">Your Company</div>
       <div class="tp-stripe" style="background:${a};"></div>
+      <div class="tp-stripe-thin" style="background:${a};"></div>
       <div class="tp-meta"><div class="tp-meta-line"></div></div>
       <div class="tp-body">${row}${rowAlt}${row}</div>
       ${total}
@@ -436,13 +446,29 @@ function getTemplatePreviewHTML(templateId, accent) {
       <div class="tp-grid-header" style="background:${a};">
         <div class="tp-grid-title">Your Company</div>
       </div>
-      <div class="tp-body">${row}${rowAlt}${row}</div>
+      <div class="tp-body">
+        <div class="tp-grid-row" style="border:1px solid #e0e0e0;border-bottom:none;">
+          <div class="tp-grid-cell" style="border-right:1px solid #e0e0e0;"></div>
+          <div class="tp-grid-cell" style="border-right:1px solid #e0e0e0;"></div>
+          <div class="tp-grid-cell"></div>
+        </div>
+        <div class="tp-grid-row" style="border:1px solid #e0e0e0;border-bottom:none;background:#f5f5f5;">
+          <div class="tp-grid-cell" style="border-right:1px solid #e0e0e0;"></div>
+          <div class="tp-grid-cell" style="border-right:1px solid #e0e0e0;"></div>
+          <div class="tp-grid-cell"></div>
+        </div>
+        <div class="tp-grid-row" style="border:1px solid #e0e0e0;">
+          <div class="tp-grid-cell" style="border-right:1px solid #e0e0e0;"></div>
+          <div class="tp-grid-cell" style="border-right:1px solid #e0e0e0;"></div>
+          <div class="tp-grid-cell"></div>
+        </div>
+      </div>
       ${total}
     `,
     corner: `
-      ${corner}
-      ${headerText}
-      <div class="tp-meta"><div class="tp-meta-line"></div></div>
+      <div class="tp-corner" style="background:${a};"></div>
+      <div class="tp-header-text" style="color:${a};">Your Company</div>
+      ${metaLeft}
       <div class="tp-body">${row}${rowAlt}${row}</div>
       ${total}
     `
