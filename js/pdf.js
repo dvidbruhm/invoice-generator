@@ -210,7 +210,16 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
     const lineCount = descLines.length || 1;
     const lineHeightMm = doc.getFontSize() * 0.3528 * 1.15;
     const descBlockHeight = lineCount * lineHeightMm;
-    const actualRowHeight = Math.max(rowHeight, descBlockHeight + 3);
+
+    const dateFormat = settings.dateFormat || 'default';
+    const datePosition = settings.datePosition || 'rotated';
+    const dateText = item.date ? formatLineItemDate(item.date, dateFormat) : '';
+    const dateLineHeight = 7 * 0.3528 * 1.15;
+    const inlineGap = 1.2;
+    const contentBlockHeight = (datePosition === 'inline' && dateText)
+      ? descBlockHeight + dateLineHeight + inlineGap
+      : descBlockHeight;
+    const actualRowHeight = Math.max(rowHeight, contentBlockHeight + 3);
 
     currentY = checkPageBreak(doc, currentY, actualRowHeight + 2);
     if (currentY <= 35 && i > 0) {
@@ -223,10 +232,6 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
       doc.rect(margin, bgTop, contentWidth, actualRowHeight, 'F');
     }
 
-    const dateFormat = settings.dateFormat || 'default';
-    const datePosition = settings.datePosition || 'rotated';
-    const dateText = item.date ? formatLineItemDate(item.date, dateFormat) : '';
-
     if (datePosition === 'rotated' && !isSidebar && dateText) {
       doc.setFontSize(7);
       doc.setTextColor(150, 150, 150);
@@ -238,17 +243,17 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
       if (isClassic) doc.setFont('times', 'normal');
     }
 
-    const descTop = bgTop + (actualRowHeight - descBlockHeight) / 2 + lineHeightMm * 0.75;
+    const blockTop = bgTop + (actualRowHeight - contentBlockHeight) / 2;
     if (datePosition === 'inline' && dateText) {
       doc.setFontSize(7);
       doc.setTextColor(150, 150, 150);
-      doc.text(dateText, colX[0] + 2, descTop - 1.5);
+      doc.text(dateText, colX[0] + 2, blockTop + dateLineHeight * 0.75);
       doc.setTextColor(0, 0, 0);
       doc.setFontSize(9);
       if (isClassic) doc.setFont('times', 'normal');
-      doc.text(descLines, colX[0] + 2, descTop + 3);
+      doc.text(descLines, colX[0] + 2, blockTop + dateLineHeight + inlineGap + lineHeightMm * 0.75);
     } else {
-      doc.text(descLines, colX[0] + 2, descTop);
+      doc.text(descLines, colX[0] + 2, blockTop + lineHeightMm * 0.75);
     }
 
     const fontHeight = doc.getFontSize() * 0.3528;
