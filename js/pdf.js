@@ -215,10 +215,11 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
 
     doc.setFontSize(9);
     if (isClassic) doc.setFont('times', 'normal');
-    doc.text(item.description, colX[0] + 2, currentY);
-    doc.text(formatCurrency(parseFloat(item.rate), settings.currency), colX[1], currentY);
-    doc.text(item.hours, colX[2], currentY);
-    doc.text(formatCurrency(amount, settings.currency), colX[3], currentY, { align: 'right' });
+    const textBaseline = currentY + (rowHeight - doc.getFontSize() * 0.3528) / 2;
+    doc.text(item.description, colX[0] + 2, textBaseline);
+    doc.text(formatCurrency(parseFloat(item.rate), settings.currency), colX[1], textBaseline);
+    doc.text(item.hours, colX[2], textBaseline);
+    doc.text(formatCurrency(amount, settings.currency), colX[3], textBaseline, { align: 'right' });
     currentY += rowHeight;
   });
 
