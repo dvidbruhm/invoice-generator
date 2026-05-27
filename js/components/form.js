@@ -241,7 +241,7 @@ function renderLineItemRow(item, index, settings, currencySymbol, totalItems) {
   const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
   return `
     <tr data-index="${index}">
-      <td><input type="text" class="item-description" value="${escapeHTML(item.description)}" placeholder="Description of work" required></td>
+      <td><textarea class="item-description" placeholder="Description of work" required rows="1">${escapeHTML(item.description)}</textarea></td>
       <td>
         <div style="position:relative;">
           <span style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.8125rem;pointer-events:none;">${currencySymbol}</span>
@@ -289,7 +289,7 @@ function addLineItem() {
   const currencySymbol = getCurrencySymbol(settings.currency);
   row.dataset.index = index;
   row.innerHTML = `
-    <td><input type="text" class="item-description" placeholder="Description of work" required></td>
+    <td><textarea class="item-description" placeholder="Description of work" required rows="1"></textarea></td>
     <td>
       <div style="position:relative;">
         <span style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.8125rem;pointer-events:none;">${currencySymbol}</span>
@@ -515,7 +515,7 @@ function applyCSVImport() {
     row.dataset.index = i;
     const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
     row.innerHTML = `
-      <td><input type="text" class="item-description" value="${escapeHTML(item.description)}" placeholder="Description of work" required></td>
+      <td><textarea class="item-description" placeholder="Description of work" required rows="1">${escapeHTML(item.description)}</textarea></td>
       <td>
         <div style="position:relative;">
           <span style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.8125rem;pointer-events:none;">${currencySymbol}</span>
@@ -553,7 +553,7 @@ function attachLineItemListeners() {
     }
   });
   tbody.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
       const row = e.target.closest('tr');
       const isLastRow = row === tbody.lastElementChild;
       if (isLastRow) {
@@ -826,8 +826,9 @@ function renderLivePreview(settings, invoice) {
     invoice.lineItems.map((item, i) => {
       const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
       const bg = i % 2 === 0 ? '' : `style="background:#f8f8f8;"`;
+      const descHtml = escapeHTML(item.description).replace(/\n/g, '<br>');
       return `<tr ${bg}>
-        <td>${escapeHTML(item.description) || '—'}</td>
+        <td>${descHtml || '—'}</td>
         <td>${item.rate ? formatCurrency(parseFloat(item.rate), settings.currency) : '—'}</td>
         <td>${escapeHTML(item.hours) || '—'}</td>
         <td class="preview-amount">${amount > 0 ? formatCurrency(amount, settings.currency) : '—'}</td>

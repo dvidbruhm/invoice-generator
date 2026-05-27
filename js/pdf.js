@@ -203,24 +203,28 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
 
   invoice.lineItems.forEach((item, i) => {
     const amount = parseFloat(item.rate) * parseFloat(item.hours);
-    currentY = checkPageBreak(doc, currentY, rowHeight + 2);
+    doc.setFontSize(9);
+    if (isClassic) doc.setFont('times', 'normal');
+    const descLines = doc.splitTextToSize(item.description || '', colX[1] - colX[0] - 4);
+    const lineCount = descLines.length || 1;
+    const actualRowHeight = Math.max(rowHeight, lineCount * 4.5 + 3);
+
+    currentY = checkPageBreak(doc, currentY, actualRowHeight + 2);
     if (currentY <= 35 && i > 0) {
       currentY = drawTableHeader(currentY);
     }
 
     if (i % 2 === 0 && !isGrid && !isClassic) {
       doc.setFillColor(248, 248, 248);
-      doc.rect(margin, currentY - 3, contentWidth, rowHeight, 'F');
+      doc.rect(margin, currentY - 3, contentWidth, actualRowHeight, 'F');
     }
 
-    doc.setFontSize(9);
-    if (isClassic) doc.setFont('times', 'normal');
-    const textBaseline = currentY + (rowHeight - doc.getFontSize() * 0.3528) / 2;
-    doc.text(item.description, colX[0] + 2, textBaseline);
-    doc.text(formatCurrency(parseFloat(item.rate), settings.currency), colX[1], textBaseline);
-    doc.text(item.hours, colX[2], textBaseline);
-    doc.text(formatCurrency(amount, settings.currency), colX[3], textBaseline, { align: 'right' });
-    currentY += rowHeight;
+    doc.text(descLines, colX[0] + 2, currentY + 1);
+    const otherBaseline = currentY + (actualRowHeight - doc.getFontSize() * 0.3528) / 2;
+    doc.text(formatCurrency(parseFloat(item.rate), settings.currency), colX[1], otherBaseline);
+    doc.text(item.hours, colX[2], otherBaseline);
+    doc.text(formatCurrency(amount, settings.currency), colX[3], otherBaseline, { align: 'right' });
+    currentY += actualRowHeight;
   });
 
   doc.setDrawColor(200, 200, 200);

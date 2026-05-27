@@ -381,7 +381,8 @@ main {
   padding: 0.5rem;
 }
 
-.line-items input {
+.line-items input,
+.line-items textarea {
   width: 100%;
   padding: 0.5rem;
   border: 1px solid var(--border);
@@ -391,11 +392,18 @@ main {
   background: var(--surface);
   color: var(--text);
   transition: border-color var(--transition);
+  resize: vertical;
 }
 
-.line-items input:focus {
+.line-items input:focus,
+.line-items textarea:focus {
   outline: none;
   border-color: var(--accent);
+}
+
+.line-items textarea.item-description {
+  min-height: 2.5rem;
+  field-sizing: content;
 }
 
 .line-items .amount-cell {
