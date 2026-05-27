@@ -1854,3 +1854,250 @@ main {
 .item-rate {
   width: 100%;
 }
+
+/* ===== Enhanced Preview Decorations ===== */
+.preview-rounded-bottom {
+  border-radius: 0 0 12px 12px;
+}
+
+.preview-rounded {
+  border-radius: 10px;
+}
+
+/* Clean template */
+.preview-clean-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.preview-clean-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Elegant template */
+.preview-elegant-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 0.75rem;
+}
+
+.preview-elegant-diamond {
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  border-radius: 1px;
+}
+
+/* Stripe template */
+.preview-stripe-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 0.75rem;
+}
+
+.preview-stripe-thin {
+  height: 2px;
+  border-radius: 1px;
+}
+
+/* Corner template secondary triangle */
+.preview-corner-triangle-secondary {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 80px;
+  height: 80px;
+  clip-path: polygon(100% 0, 100% 100%, 0 0);
+  z-index: 0;
+}
+
+.preview-corner-triangle {
+  z-index: 1;
+}
+
+/* Bordered corner dots */
+.preview-corner-dot {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+/* Subtle template */
+.preview-subtle-wrap {
+  margin-bottom: 0.75rem;
+}
+
+.preview-subtle-fade {
+  height: 3px;
+  width: 50px;
+  border-radius: 2px;
+  margin-top: 4px;
+}
+
+/* Classic template */
+.preview-classic-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 0.75rem;
+}
+
+.preview-classic-line-thin {
+  height: 1px;
+  opacity: 0.5;
+  border-radius: 1px;
+}
+
+/* Compact pill */
+.preview-compact-pill {
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Sidebar text */
+.preview-sidebar-text {
+  color: white;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  padding-top: 1.5rem;
+  opacity: 0.9;
+}
+
+/* ===== Template-specific Table Styles ===== */
+
+/* Classic: serif feel, no header background, double borders */
+.preview-template-classic .preview-table thead tr {
+  background: none !important;
+  border-top: 2px solid #111;
+  border-bottom: 2px solid #111;
+}
+.preview-template-classic .preview-table th {
+  color: #111 !important;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 0.75rem;
+}
+.preview-template-classic .preview-table td {
+  border-bottom: 1px solid #ddd;
+}
+.preview-template-classic .preview-company {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+}
+
+/* Clean: minimal table, no colored header */
+.preview-template-clean .preview-table thead tr {
+  background: none !important;
+  border-bottom: 2px solid #e5e5e5;
+}
+.preview-template-clean .preview-table th {
+  color: #666 !important;
+  font-weight: 600;
+}
+.preview-template-clean .preview-table td {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* Elegant: thin header with accent text */
+.preview-template-elegant .preview-table thead tr {
+  background: none !important;
+  border-bottom: 2px solid #e5e5e5;
+}
+.preview-template-elegant .preview-table th {
+  color: #666 !important;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+
+/* Bold: thick header */
+.preview-template-bold .preview-table thead tr {
+  background: #111 !important;
+}
+.preview-template-bold .preview-table th {
+  color: white !important;
+  font-weight: 700;
+  font-size: 0.625rem;
+}
+
+/* Grid: cell borders */
+.preview-template-grid .preview-table {
+  border: 1px solid #e0e0e0;
+}
+.preview-template-grid .preview-table th,
+.preview-template-grid .preview-table td {
+  border-right: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e0e0e0;
+}
+.preview-template-grid .preview-table th:last-child,
+.preview-template-grid .preview-table td:last-child {
+  border-right: none;
+}
+.preview-template-grid .preview-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Corner: no changes to table, but accent the total */
+.preview-template-corner .preview-total-final {
+  border-top-width: 3px;
+}
+
+/* Sidebar: shift content slightly */
+.preview-template-sidebar .preview-invoice {
+  padding-left: 3.5rem;
+}
+
+/* Subtle: light table header */
+.preview-template-subtle .preview-table thead tr {
+  background: #f8f8f8 !important;
+}
+.preview-template-subtle .preview-table th {
+  color: #666 !important;
+  font-weight: 600;
+}
+
+/* Stripe: stripy feel */
+.preview-template-stripe .preview-table thead tr {
+  background: #111 !important;
+}
+.preview-template-stripe .preview-table th {
+  color: white !important;
+}
+.preview-template-stripe .preview-table tbody tr:nth-child(even) {
+  background: #f8f8f8;
+}
+
+/* Bordered: table with outer border */
+.preview-template-bordered .preview-table {
+  border: 2px solid #e5e5e5;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* Compact: tighter table */
+.preview-template-compact .preview-table th,
+.preview-template-compact .preview-table td {
+  padding: 0.375rem 0.5rem;
+  font-size: 0.75rem;
+}
+.preview-template-compact .preview-meta {
+  margin-bottom: 0.75rem;
+}
+.preview-template-compact .preview-client {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+}

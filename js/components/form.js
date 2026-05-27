@@ -847,9 +847,10 @@ function renderLivePreview(settings, invoice) {
   `;
   
   const headerStyle = getTemplatePreviewStyle(settings.template, accent, companyName, invoice, settings);
+  const tplClass = `preview-template-${settings.template || 'modern'}`;
   
   return `
-    <div class="preview-invoice" style="--accent:${accent}; --accent-light:${accent}10; --accent-med:${accent}20;">
+    <div class="preview-invoice ${tplClass}" style="--accent:${accent}; --accent-light:${accent}10; --accent-med:${accent}20;">
       ${headerStyle}
       
       <div class="preview-meta">
@@ -905,36 +906,77 @@ function renderLivePreview(settings, invoice) {
 function getTemplatePreviewStyle(template, accent, companyName, invoice, settings) {
   const labelInvoice = settings?.labelInvoice || 'INVOICE';
   const labelInvoiceNum = settings?.labelInvoiceNumber || 'Invoice #';
-  
+  const invNum = escapeHTML(invoice.number || '');
+  const comp = escapeHTML(companyName);
+  const a = accent;
+
   switch (template) {
     case 'modern':
-      return `<div class="preview-accent-bar" style="background:${accent};"></div>`;
+      return `<div class="preview-accent-bar preview-rounded-bottom" style="background:${a};"></div>`;
+
     case 'bold':
-      return `<div class="preview-bold-header" style="background:${accent};">
-        <span class="preview-bold-title">${escapeHTML(companyName)}</span>
-        <span class="preview-bold-num">${escapeHTML(labelInvoiceNum)} ${escapeHTML(invoice.number || '')}</span>
+      return `<div class="preview-bold-header preview-rounded" style="background:${a};">
+        <span class="preview-bold-title">${comp}</span>
+        <span class="preview-bold-num">${escapeHTML(labelInvoiceNum)} ${invNum}</span>
       </div>`;
-    case 'sidebar':
-      return `<div class="preview-sidebar-bar" style="background:${accent};"></div>`;
-    case 'stripe':
-      return `<div class="preview-stripe-bar" style="background:${accent};"></div>`;
-    case 'corner':
-      return `<div class="preview-corner-triangle" style="background:${accent};"></div>`;
-    case 'bordered':
-      return `<div class="preview-border-frame" style="border-color:${accent};"></div>`;
-    case 'elegant':
-      return `<div class="preview-elegant-line" style="background:${accent};"></div>`;
-    case 'grid':
-      return `<div class="preview-grid-header" style="background:${accent};"><span>${escapeHTML(companyName)}</span></div>`;
-    case 'subtle':
-      return `<div class="preview-subtle-underline" style="background:${accent};"></div>`;
+
     case 'clean':
-      return `<div class="preview-clean-spacer"></div>`;
-    case 'classic':
-      return `<div class="preview-classic-line" style="background:${accent};"></div>`;
+      return `<div class="preview-clean-wrap">
+        <div class="preview-clean-dot" style="background:${a};"></div>
+      </div>`;
+
+    case 'elegant':
+      return `<div class="preview-elegant-wrap">
+        <div class="preview-elegant-line" style="background:${a};"></div>
+        <div class="preview-elegant-diamond" style="background:${a};"></div>
+        <div class="preview-elegant-line" style="background:${a};"></div>
+      </div>`;
+
     case 'compact':
-      return `<div class="preview-compact-bar" style="border-bottom-color:${accent};"><span>${escapeHTML(companyName)}</span><div class="preview-compact-meta"></div></div>`;
+      return `<div class="preview-compact-bar" style="border-bottom-color:${a};">
+        <span>${comp}</span>
+        <span class="preview-compact-pill" style="background:${a};">${escapeHTML(labelInvoice)}</span>
+      </div>`;
+
+    case 'sidebar':
+      return `<div class="preview-sidebar-bar" style="background:${a};">
+        <div class="preview-sidebar-text">${comp.charAt(0)}</div>
+      </div>`;
+
+    case 'stripe':
+      return `<div class="preview-stripe-wrap">
+        <div class="preview-stripe-bar" style="background:${a};"></div>
+        <div class="preview-stripe-thin" style="background:${a};"></div>
+      </div>`;
+
+    case 'corner':
+      return `<div class="preview-corner-triangle" style="background:${a};"></div>
+      <div class="preview-corner-triangle-secondary" style="background:${a}33;"></div>`;
+
+    case 'bordered':
+      return `<div class="preview-border-frame" style="border-color:${a};">
+        <div class="preview-corner-dot" style="background:${a};top:10px;left:10px;"></div>
+        <div class="preview-corner-dot" style="background:${a};top:10px;right:10px;"></div>
+        <div class="preview-corner-dot" style="background:${a};bottom:10px;left:10px;"></div>
+        <div class="preview-corner-dot" style="background:${a};bottom:10px;right:10px;"></div>
+      </div>`;
+
+    case 'subtle':
+      return `<div class="preview-subtle-wrap">
+        <div class="preview-subtle-underline" style="background:${a};"></div>
+        <div class="preview-subtle-fade" style="background:linear-gradient(to right,${a},transparent);"></div>
+      </div>`;
+
+    case 'grid':
+      return `<div class="preview-grid-header" style="background:${a};"><span>${comp}</span></div>`;
+
+    case 'classic':
+      return `<div class="preview-classic-wrap">
+        <div class="preview-classic-line" style="background:${a};"></div>
+        <div class="preview-classic-line-thin" style="background:${a};"></div>
+      </div>`;
+
     default:
-      return `<div class="preview-accent-bar" style="background:${accent};"></div>`;
+      return `<div class="preview-accent-bar preview-rounded-bottom" style="background:${a};"></div>`;
   }
 }

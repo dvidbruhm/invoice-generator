@@ -160,13 +160,35 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
   ];
   const rowHeight = 8;
   const headerHeight = 7;
-  
+  const template = settings.template || 'modern';
+  const isGrid = template === 'grid';
+  const isClassic = template === 'classic';
+  const isClean = template === 'clean';
+
   function drawTableHeader(yPos) {
-    doc.setFillColor(accent.r, accent.g, accent.b);
-    doc.rect(margin, yPos, contentWidth, headerHeight, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(8);
-    doc.setFont(undefined, 'bold');
+    if (isClassic) {
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.8);
+      doc.line(margin, yPos, margin + contentWidth, yPos);
+      doc.setLineWidth(0.4);
+      doc.line(margin, yPos + headerHeight + 1, margin + contentWidth, yPos + headerHeight + 1);
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(8);
+      doc.setFont('times', 'bold');
+    } else if (isClean) {
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos + headerHeight + 1, margin + contentWidth, yPos + headerHeight + 1);
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(8);
+      doc.setFont(undefined, 'bold');
+    } else {
+      doc.setFillColor(accent.r, accent.g, accent.b);
+      doc.rect(margin, yPos, contentWidth, headerHeight, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.setFont(undefined, 'bold');
+    }
     doc.text(headers[0], colX[0] + 2, yPos + 5);
     doc.text(headers[1], colX[1], yPos + 5);
     doc.text(headers[2], colX[2], yPos + 5);
@@ -175,35 +197,50 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
     doc.setTextColor(0, 0, 0);
     return yPos + headerHeight + 3;
   }
-  
+
   let currentY = drawTableHeader(y);
   const tableStartY = y;
-  
+
   invoice.lineItems.forEach((item, i) => {
     const amount = parseFloat(item.rate) * parseFloat(item.hours);
     currentY = checkPageBreak(doc, currentY, rowHeight + 2);
     if (currentY <= 35 && i > 0) {
       currentY = drawTableHeader(currentY);
     }
-    
-    if (i % 2 === 0) {
+
+    if (i % 2 === 0 && !isGrid && !isClassic) {
       doc.setFillColor(248, 248, 248);
       doc.rect(margin, currentY - 3, contentWidth, rowHeight, 'F');
     }
-    
+
     doc.setFontSize(9);
+    if (isClassic) doc.setFont('times', 'normal');
     doc.text(item.description, colX[0] + 2, currentY);
     doc.text(formatCurrency(parseFloat(item.rate), settings.currency), colX[1], currentY);
     doc.text(item.hours, colX[2], currentY);
     doc.text(formatCurrency(amount, settings.currency), colX[3], currentY, { align: 'right' });
     currentY += rowHeight;
   });
-  
+
   doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(0.5);
+  if (isClassic) {
+    doc.setDrawColor(0, 0, 0);
+    doc.setLineWidth(0.8);
+  }
   doc.line(margin, tableStartY, margin + contentWidth, tableStartY);
   doc.line(margin, currentY - 2, margin + contentWidth, currentY - 2);
-  
+
+  if (isGrid) {
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.3);
+    for (const x of colX) {
+      doc.line(x, tableStartY, x, currentY - 2);
+    }
+    doc.line(margin + contentWidth, tableStartY, margin + contentWidth, currentY - 2);
+    doc.line(margin, tableStartY, margin, currentY - 2);
+  }
+
   return currentY + 5;
 }
 
@@ -276,9 +313,40 @@ function renderFooter(doc, settings, accent, margin, contentWidth, y, pageHeight
 }
 
 function renderClassic(doc, invoice, settings, accent, margin, contentWidth, pageWidth, subtotal, tps, tvq, total) {
-  let y = 25;
+  let y = 22;
   doc.setFont('times');
-  y = renderHeader(doc, invoice, settings, accent, margin, contentWidth, pageWidth, y);
+
+  doc.setFontSize(20);
+  doc.setTextColor(accent.r, accent.g, accent.b);
+  doc.text(settings.companyName || 'Your Company', margin, y + 8);
+
+  doc.setDrawColor(accent.r, accent.g, accent.b);
+  doc.setLineWidth(1.2);
+  doc.line(margin, y + 12, margin + contentWidth, y + 12);
+  doc.setLineWidth(0.4);
+  doc.line(margin, y + 14.5, margin + contentWidth, y + 14.5);
+
+  y += 22;
+
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  let metaY = y;
+  if (settings.companyAddress) { doc.text(settings.companyAddress, margin, metaY); metaY += 4; }
+  if (settings.companyEmail) { doc.text(settings.companyEmail, margin, metaY); metaY += 4; }
+  if (settings.companyPhone) { doc.text(settings.companyPhone, margin, metaY); metaY += 4; }
+
+  doc.setFontSize(14);
+  doc.setTextColor(0, 0, 0);
+  doc.text(settings.labelInvoice || 'INVOICE', pageWidth - margin - 40, y + 4, { align: 'right' });
+
+  doc.setFontSize(9);
+  doc.setTextColor(100, 100, 100);
+  let rightY = y + 10;
+  doc.text(`${settings.labelInvoiceNumber || 'Invoice #'} ${invoice.number}`, pageWidth - margin, rightY, { align: 'right' }); rightY += 5;
+  doc.text(`${settings.labelDate || 'Date'}: ${invoice.date}`, pageWidth - margin, rightY, { align: 'right' }); rightY += 5;
+  doc.text(`${settings.labelDueDate || 'Due'}: ${invoice.dueDate}`, pageWidth - margin, rightY, { align: 'right' });
+
+  y = Math.max(metaY, rightY) + 10;
   y = renderClientSection(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderTotals(doc, settings, accent, margin, contentWidth, y, subtotal, tps, tvq, total);
@@ -287,9 +355,13 @@ function renderClassic(doc, invoice, settings, accent, margin, contentWidth, pag
 
 function renderModern(doc, invoice, settings, accent, margin, contentWidth, pageWidth, pageHeight, subtotal, tps, tvq, total) {
   doc.setFillColor(accent.r, accent.g, accent.b);
-  doc.rect(0, 0, pageWidth, 8, 'F');
-  
-  let y = 20;
+  if (doc.roundedRect) {
+    doc.roundedRect(0, -3, pageWidth, 13, 3, 3, 'F');
+  } else {
+    doc.rect(0, 0, pageWidth, 10, 'F');
+  }
+
+  let y = 22;
   y = renderHeader(doc, invoice, settings, accent, margin, contentWidth, pageWidth, y);
   y = renderClientSection(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y);
@@ -302,11 +374,14 @@ function renderClean(doc, invoice, settings, accent, margin, contentWidth, pageW
   doc.setFontSize(22);
   doc.setTextColor(accent.r, accent.g, accent.b);
   doc.text(settings.companyName || 'Your Company', margin, y + 8);
-  
+
+  doc.setFillColor(accent.r, accent.g, accent.b);
+  doc.ellipse(margin + contentWidth / 2, y + 14, 1.5, 1.5, 'F');
+
   doc.setFontSize(10);
   doc.setTextColor(150, 150, 150);
   doc.text('INVOICE', pageWidth - margin, y + 8, { align: 'right' });
-  
+
   y = renderClientSection(doc, invoice, settings, accent, margin, contentWidth, y + 20);
   y = renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderTotals(doc, settings, accent, margin, contentWidth, y, subtotal, tps, tvq, total);
@@ -314,23 +389,27 @@ function renderClean(doc, invoice, settings, accent, margin, contentWidth, pageW
 }
 
 function renderBold(doc, invoice, settings, accent, margin, contentWidth, pageWidth, subtotal, tps, tvq, total) {
-  let y = 20;
+  let y = 18;
   doc.setFillColor(accent.r, accent.g, accent.b);
-  doc.rect(margin, y, contentWidth, 30, 'F');
-  
+  if (doc.roundedRect) {
+    doc.roundedRect(margin, y, contentWidth, 34, 4, 4, 'F');
+  } else {
+    doc.rect(margin, y, contentWidth, 34, 'F');
+  }
+
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
   doc.setFont(undefined, 'bold');
-  doc.text(settings.companyName || 'Your Company', margin + 5, y + 12);
-  
+  doc.text(settings.companyName || 'Your Company', margin + 5, y + 13);
+
   doc.setFontSize(10);
-  doc.text(`#${invoice.number}`, pageWidth - margin - 5, y + 12, { align: 'right' });
-  
+  doc.text(`#${invoice.number}`, pageWidth - margin - 5, y + 13, { align: 'right' });
+
   doc.setFont(undefined, 'normal');
   doc.setFontSize(8);
-  doc.text(`Date: ${invoice.date} | Due: ${invoice.dueDate}`, pageWidth - margin - 5, y + 22, { align: 'right' });
-  
-  y += 40;
+  doc.text(`Date: ${invoice.date} | Due: ${invoice.dueDate}`, pageWidth - margin - 5, y + 24, { align: 'right' });
+
+  y += 44;
   y = renderClientSection(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderTotals(doc, settings, accent, margin, contentWidth, y, subtotal, tps, tvq, total);
@@ -338,22 +417,28 @@ function renderBold(doc, invoice, settings, accent, margin, contentWidth, pageWi
 }
 
 function renderElegant(doc, invoice, settings, accent, margin, contentWidth, pageWidth, subtotal, tps, tvq, total) {
-  let y = 25;
+  let y = 22;
   doc.setDrawColor(accent.r, accent.g, accent.b);
   doc.setLineWidth(0.5);
   doc.line(margin, y, margin + 60, y);
-  
+
   doc.setFontSize(20);
   doc.setTextColor(accent.r, accent.g, accent.b);
   doc.text(settings.companyName || 'Your Company', margin, y + 8);
-  
+
   doc.line(margin + 65, y + 4, margin + contentWidth, y + 4);
-  
+
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
   doc.text(`Invoice ${invoice.number}`, pageWidth - margin, y + 8, { align: 'right' });
-  
-  y = renderClientSection(doc, invoice, settings, accent, margin, contentWidth, y + 20);
+
+  doc.setFillColor(accent.r, accent.g, accent.b);
+  const diamondSize = 2;
+  const diamondY = y + 14;
+  doc.triangle(margin + 30, diamondY - diamondSize, margin + 30 + diamondSize, diamondY, margin + 30, diamondY + diamondSize, 'F');
+  doc.triangle(margin + 30, diamondY - diamondSize, margin + 30 - diamondSize, diamondY, margin + 30, diamondY + diamondSize, 'F');
+
+  y = renderClientSection(doc, invoice, settings, accent, margin, contentWidth, y + 22);
   y = renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderTotals(doc, settings, accent, margin, contentWidth, y, subtotal, tps, tvq, total);
   renderFooter(doc, settings, accent, margin, contentWidth, y, doc.internal.pageSize.getHeight(), pageWidth);
@@ -363,13 +448,23 @@ function renderCompact(doc, invoice, settings, accent, margin, contentWidth, pag
   let y = 15;
   doc.setFontSize(14);
   doc.setTextColor(accent.r, accent.g, accent.b);
-  doc.text(`${settings.companyName || 'Your Company'} | Invoice #${invoice.number}`, margin, y + 6);
-  
+  doc.text(`${settings.companyName || 'Your Company'}`, margin, y + 6);
+
+  doc.setFillColor(accent.r, accent.g, accent.b);
+  if (doc.roundedRect) {
+    doc.roundedRect(pageWidth - margin - 28, y, 28, 8, 2, 2, 'F');
+  } else {
+    doc.rect(pageWidth - margin - 28, y, 28, 8, 'F');
+  }
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7);
+  doc.text('INVOICE', pageWidth - margin - 14, y + 5.5, { align: 'center' });
+
   doc.setFontSize(8);
   doc.setTextColor(100, 100, 100);
-  doc.text(`${invoice.date} | Due: ${invoice.dueDate} | ${invoice.clientName}`, pageWidth - margin, y + 6, { align: 'right' });
-  
-  y += 18;
+  doc.text(`#${invoice.number} | ${invoice.date} | Due: ${invoice.dueDate} | ${invoice.clientName}`, margin, y + 14);
+
+  y += 22;
   y = renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderTotals(doc, settings, accent, margin, contentWidth, y, subtotal, tps, tvq, total);
   renderFooter(doc, settings, accent, margin, contentWidth, y, doc.internal.pageSize.getHeight(), pageWidth);
@@ -378,33 +473,34 @@ function renderCompact(doc, invoice, settings, accent, margin, contentWidth, pag
 function renderSidebar(doc, invoice, settings, accent, margin, contentWidth, pageWidth, pageHeight, subtotal, tps, tvq, total) {
   doc.setFillColor(accent.r, accent.g, accent.b);
   doc.rect(0, 0, 45, pageHeight, 'F');
-  
+
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(12);
+  doc.setFontSize(14);
   doc.setFont(undefined, 'bold');
-  doc.text(settings.companyName || 'Your Company', 22, 30, { align: 'center' });
-  
+  const compName = settings.companyName || 'Your Company';
+  doc.text(compName, 22, 30, { align: 'center' });
+
   doc.setFontSize(8);
   doc.setFont(undefined, 'normal');
-  let sidebarY = 40;
+  let sidebarY = 42;
   if (settings.companyAddress) { doc.text(settings.companyAddress, 22, sidebarY, { align: 'center' }); sidebarY += 5; }
   if (settings.companyEmail) { doc.text(settings.companyEmail, 22, sidebarY, { align: 'center' }); sidebarY += 5; }
   if (settings.companyPhone) { doc.text(settings.companyPhone, 22, sidebarY, { align: 'center' }); sidebarY += 5; }
   if (settings.companyWebsite) { doc.text(settings.companyWebsite, 22, sidebarY, { align: 'center' }); sidebarY += 5; }
-  
+
   const sideMargin = 55;
   const sideWidth = pageWidth - sideMargin - margin;
-  
+
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(16);
   doc.text('INVOICE', sideMargin, 25);
-  
+
   doc.setFontSize(9);
   doc.setTextColor(100, 100, 100);
   doc.text(`#${invoice.number}`, sideMargin, 33);
   doc.text(`Date: ${invoice.date}`, sideMargin, 39);
   doc.text(`Due: ${invoice.dueDate}`, sideMargin, 45);
-  
+
   let y = 55;
   y = renderClientSection(doc, invoice, settings, accent, sideMargin, sideWidth, y);
   y = renderLineItems(doc, invoice, settings, accent, sideMargin, sideWidth, y);
@@ -413,16 +509,28 @@ function renderSidebar(doc, invoice, settings, accent, margin, contentWidth, pag
 }
 
 function renderBordered(doc, invoice, settings, accent, margin, contentWidth, pageWidth, subtotal, tps, tvq, total) {
+  const pageH = doc.internal.pageSize.getHeight();
   doc.setDrawColor(accent.r, accent.g, accent.b);
   doc.setLineWidth(1.5);
-  doc.rect(margin - 3, 12, contentWidth + 6, doc.internal.pageSize.getHeight() - 24);
-  
+  if (doc.roundedRect) {
+    doc.roundedRect(margin - 3, 12, contentWidth + 6, pageH - 24, 3, 3, 'S');
+  } else {
+    doc.rect(margin - 3, 12, contentWidth + 6, pageH - 24, 'S');
+  }
+
+  doc.setFillColor(accent.r, accent.g, accent.b);
+  const dotR = 2;
+  doc.ellipse(margin, 12, dotR, dotR, 'F');
+  doc.ellipse(margin + contentWidth, 12, dotR, dotR, 'F');
+  doc.ellipse(margin, pageH - 12, dotR, dotR, 'F');
+  doc.ellipse(margin + contentWidth, pageH - 12, dotR, dotR, 'F');
+
   let y = 25;
   y = renderHeader(doc, invoice, settings, accent, margin, contentWidth, pageWidth, y);
   y = renderClientSection(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderTotals(doc, settings, accent, margin, contentWidth, y, subtotal, tps, tvq, total);
-  renderFooter(doc, settings, accent, margin, contentWidth, y, doc.internal.pageSize.getHeight(), pageWidth);
+  renderFooter(doc, settings, accent, margin, contentWidth, y, pageH, pageWidth);
 }
 
 function renderSubtle(doc, invoice, settings, accent, margin, contentWidth, pageWidth, subtotal, tps, tvq, total) {
@@ -430,15 +538,17 @@ function renderSubtle(doc, invoice, settings, accent, margin, contentWidth, page
   doc.setFontSize(18);
   doc.setTextColor(50, 50, 50);
   doc.text(settings.companyName || 'Your Company', margin, y + 6);
-  
+
   doc.setDrawColor(accent.r, accent.g, accent.b);
-  doc.setLineWidth(0.3);
+  doc.setLineWidth(0.8);
   doc.line(margin, y + 10, margin + 40, y + 10);
-  
+  doc.setLineWidth(0.3);
+  doc.line(margin, y + 12, margin + 60, y + 12);
+
   doc.setFontSize(10);
   doc.setTextColor(150, 150, 150);
   doc.text(`Invoice #${invoice.number}`, pageWidth - margin, y + 6, { align: 'right' });
-  
+
   y += 25;
   y = renderClientSection(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y);
@@ -447,19 +557,21 @@ function renderSubtle(doc, invoice, settings, accent, margin, contentWidth, page
 }
 
 function renderStripe(doc, invoice, settings, accent, margin, contentWidth, pageWidth, subtotal, tps, tvq, total) {
-  let y = 20;
+  let y = 18;
   doc.setFillColor(accent.r, accent.g, accent.b);
-  doc.rect(0, y, pageWidth, 3, 'F');
-  y += 10;
-  
+  doc.rect(0, y, pageWidth, 4, 'F');
+  doc.setFillColor(accent.r, accent.g, accent.b);
+  doc.rect(0, y + 6, pageWidth, 1, 'F');
+  y += 14;
+
   doc.setFontSize(16);
   doc.setTextColor(accent.r, accent.g, accent.b);
   doc.text(settings.companyName || 'Your Company', margin, y + 6);
-  
+
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
   doc.text(`Invoice #${invoice.number}`, pageWidth - margin, y + 6, { align: 'right' });
-  
+
   y += 20;
   y = renderClientSection(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y);
@@ -469,20 +581,24 @@ function renderStripe(doc, invoice, settings, accent, margin, contentWidth, page
 
 function renderGrid(doc, invoice, settings, accent, margin, contentWidth, pageWidth, subtotal, tps, tvq, total) {
   let y = 25;
-  doc.setDrawColor(220, 220, 220);
+  doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(0.3);
-  
+
   doc.setFillColor(accent.r, accent.g, accent.b);
-  doc.rect(margin, y, contentWidth, 15, 'F');
+  if (doc.roundedRect) {
+    doc.roundedRect(margin, y, contentWidth, 16, 2, 2, 'F');
+  } else {
+    doc.rect(margin, y, contentWidth, 16, 'F');
+  }
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
-  doc.text(settings.companyName || 'Your Company', margin + 5, y + 10);
-  
+  doc.text(settings.companyName || 'Your Company', margin + 5, y + 11);
+
   doc.setTextColor(0, 0, 0);
   doc.setFontSize(10);
-  doc.text(`#${invoice.number}`, pageWidth - margin - 5, y + 10, { align: 'right' });
-  
-  y += 20;
+  doc.text(`#${invoice.number}`, pageWidth - margin - 5, y + 11, { align: 'right' });
+
+  y += 22;
   y = renderClientSection(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderTotals(doc, settings, accent, margin, contentWidth, y, subtotal, tps, tvq, total);
@@ -491,17 +607,20 @@ function renderGrid(doc, invoice, settings, accent, margin, contentWidth, pageWi
 
 function renderCorner(doc, invoice, settings, accent, margin, contentWidth, pageWidth, subtotal, tps, tvq, total) {
   doc.setFillColor(accent.r, accent.g, accent.b);
-  doc.triangle(pageWidth - 50, 0, pageWidth, 0, pageWidth, 50, 'F');
-  
+  doc.triangle(pageWidth - 55, 0, pageWidth, 0, pageWidth, 55, 'F');
+
+  doc.setFillColor(Math.min(255, accent.r + 60), Math.min(255, accent.g + 60), Math.min(255, accent.b + 60));
+  doc.triangle(pageWidth - 35, 0, pageWidth, 0, pageWidth, 35, 'F');
+
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(10);
-  doc.text(`#${invoice.number}`, pageWidth - 10, 15, { angle: 45 });
-  
+  doc.text(`#${invoice.number}`, pageWidth - 12, 16, { angle: 45 });
+
   let y = 25;
   doc.setFontSize(18);
   doc.setTextColor(accent.r, accent.g, accent.b);
   doc.text(settings.companyName || 'Your Company', margin, y + 6);
-  
+
   y += 20;
   y = renderClientSection(doc, invoice, settings, accent, margin, contentWidth, y);
   y = renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y);
