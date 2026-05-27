@@ -125,6 +125,10 @@ function getDefaultSettings() {
     labelTPS: 'TPS',
     labelTVQ: 'TVQ',
     dateFormat: 'default',
-    datePosition: 'rotated'
+    datePosition: 'rotated',
+    colDescription: 35,
+    colRate: 15,
+    colHours: 15,
+    colAmount: 20
   };
 }

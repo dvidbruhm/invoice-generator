@@ -108,10 +108,10 @@ async function renderInvoiceForm(editId = null) {
                 <thead>
                   <tr>
                     <th style="width: 12%;">Date</th>
-                    <th style="width: 30%;">${escapeHTML(mergedSettings.labelDescription || 'Description')}</th>
-                    <th style="width: 14%;">${escapeHTML(mergedSettings.labelRate || 'Rate')}</th>
-                    <th style="width: 14%;">${escapeHTML(mergedSettings.labelHours || 'Hours')}</th>
-                    <th style="width: 20%;">${escapeHTML(mergedSettings.labelAmount || 'Amount')}</th>
+                    <th style="width: ${mergedSettings.colDescription || 35}%;">${escapeHTML(mergedSettings.labelDescription || 'Description')}</th>
+                    <th style="width: ${mergedSettings.colRate || 15}%;">${escapeHTML(mergedSettings.labelRate || 'Rate')}</th>
+                    <th style="width: ${mergedSettings.colHours || 15}%;">${escapeHTML(mergedSettings.labelHours || 'Hours')}</th>
+                    <th style="width: ${mergedSettings.colAmount || 20}%;">${escapeHTML(mergedSettings.labelAmount || 'Amount')}</th>
                     <th style="width: 10%;"></th>
                   </tr>
                 </thead>
@@ -907,10 +907,10 @@ function renderLivePreview(settings, invoice) {
       <table class="preview-table">
         <thead>
           <tr style="background:${accent};">
-            <th>${escapeHTML(settings.labelDescription || 'Description')}</th>
-            <th>${escapeHTML(settings.labelRate || 'Rate')}</th>
-            <th>${escapeHTML(settings.labelHours || 'Hours')}</th>
-            <th>${escapeHTML(settings.labelAmount || 'Amount')}</th>
+            <th style="width:${settings.colDescription || 35}%">${escapeHTML(settings.labelDescription || 'Description')}</th>
+            <th style="width:${settings.colRate || 15}%">${escapeHTML(settings.labelRate || 'Rate')}</th>
+            <th style="width:${settings.colHours || 15}%">${escapeHTML(settings.labelHours || 'Hours')}</th>
+            <th style="width:${settings.colAmount || 20}%">${escapeHTML(settings.labelAmount || 'Amount')}</th>
           </tr>
         </thead>
         <tbody>

@@ -161,6 +161,31 @@ async function renderSettings() {
       </details>
       
       <details class="card collapsible" open>
+        <summary class="card-title collapsible-toggle">Column Widths (%)</summary>
+        <div class="collapsible-content">
+          <div class="form-grid">
+            <div class="form-group">
+              <label for="col-description">Description</label>
+              <input type="number" id="col-description" value="${escapeHTML(String(merged.colDescription))}" min="5" max="80" step="1">
+            </div>
+            <div class="form-group">
+              <label for="col-rate">Rate</label>
+              <input type="number" id="col-rate" value="${escapeHTML(String(merged.colRate))}" min="5" max="40" step="1">
+            </div>
+            <div class="form-group">
+              <label for="col-hours">Hours</label>
+              <input type="number" id="col-hours" value="${escapeHTML(String(merged.colHours))}" min="5" max="40" step="1">
+            </div>
+            <div class="form-group">
+              <label for="col-amount">Amount</label>
+              <input type="number" id="col-amount" value="${escapeHTML(String(merged.colAmount))}" min="5" max="40" step="1">
+            </div>
+          </div>
+          <p style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.5rem;">Adjust the relative widths of the four line-item columns. The date and action columns stay fixed.</p>
+        </div>
+      </details>
+      
+      <details class="card collapsible" open>
         <summary class="card-title collapsible-toggle">Defaults</summary>
         <div class="collapsible-content">
           <div class="form-grid">
@@ -334,7 +359,11 @@ async function saveSettingsForm() {
       labelDescription: document.getElementById('label-description').value,
       labelRate: document.getElementById('label-rate').value,
       labelHours: document.getElementById('label-hours').value,
-      labelAmount: document.getElementById('label-amount').value
+      labelAmount: document.getElementById('label-amount').value,
+      colDescription: parseInt(document.getElementById('col-description').value, 10) || 35,
+      colRate: parseInt(document.getElementById('col-rate').value, 10) || 15,
+      colHours: parseInt(document.getElementById('col-hours').value, 10) || 15,
+      colAmount: parseInt(document.getElementById('col-amount').value, 10) || 20
     };
 
     await saveSettingsBulk(settings);

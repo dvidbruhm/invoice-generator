@@ -151,7 +151,25 @@ function renderClientSection(doc, invoice, settings, accent, margin, contentWidt
 }
 
 function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y) {
-  const colX = [margin, margin + 80, margin + 110, margin + 140, margin + 170];
+  const colDescPct = settings.colDescription || 35;
+  const colRatePct = settings.colRate || 15;
+  const colHoursPct = settings.colHours || 15;
+  const colAmountPct = settings.colAmount || 20;
+  const totalPct = colDescPct + colRatePct + colHoursPct + colAmountPct;
+
+  const descW = (colDescPct / totalPct) * contentWidth;
+  const rateW = (colRatePct / totalPct) * contentWidth;
+  const hoursW = (colHoursPct / totalPct) * contentWidth;
+  const amountW = (colAmountPct / totalPct) * contentWidth;
+
+  const colX = [
+    margin,
+    margin + descW,
+    margin + descW + rateW,
+    margin + descW + rateW + hoursW,
+    margin + descW + rateW + hoursW + amountW
+  ];
+
   const headers = [
     settings.labelDescription || 'Description',
     settings.labelRate || 'Rate',
