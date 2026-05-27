@@ -5,7 +5,17 @@ function initApp() {
 
 function handleRoute() {
   const hash = window.location.hash || '#/';
-  
+
+  if (!isLoggedIn() && hash !== '#/login' && hash !== '#/register') {
+    window.location.hash = '#/login';
+    return;
+  }
+
+  if (isLoggedIn() && (hash === '#/login' || hash === '#/register')) {
+    window.location.hash = '#/';
+    return;
+  }
+
   if (hash === '#/' || hash === '') {
     renderDashboard();
   } else if (hash === '#/create') {
@@ -17,6 +27,8 @@ function handleRoute() {
     renderHistory();
   } else if (hash === '#/settings') {
     renderSettings();
+  } else if (hash === '#/login' || hash === '#/register') {
+    renderAuth();
   } else {
     renderDashboard();
   }

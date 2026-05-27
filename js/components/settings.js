@@ -276,36 +276,39 @@ async function saveSettingsForm() {
     const colorOption = document.querySelector('.color-option.selected');
     const customPicker = document.getElementById('custom-color-picker');
     const accentColor = (colorOption?.dataset.color) || (document.querySelector('.color-option-custom.selected') ? customPicker.value : '#2563eb');
-    
-    await saveSetting('companyName', document.getElementById('company-name').value);
-    await saveSetting('companyAddress', document.getElementById('company-address').value);
-    await saveSetting('companyEmail', document.getElementById('company-email').value);
-    await saveSetting('companyPhone', document.getElementById('company-phone').value);
-    await saveSetting('companyWebsite', document.getElementById('company-website').value);
-    await saveSetting('template', template);
-    await saveSetting('accentColor', accentColor);
-    await saveSetting('invoicePrefix', document.getElementById('invoice-prefix').value);
-    await saveSetting('currency', document.getElementById('currency').value);
-    await saveSetting('taxTPS', document.getElementById('tax-tps').checked);
-    await saveSetting('taxTVQ', document.getElementById('tax-tvq').checked);
-    await saveSetting('paymentTerms', document.getElementById('payment-terms').value);
-    await saveSetting('notes', document.getElementById('default-notes').value);
-    await saveSetting('labelInvoice', document.getElementById('label-invoice').value);
-    await saveSetting('labelBillTo', document.getElementById('label-bill-to').value);
-    await saveSetting('labelInvoiceNumber', document.getElementById('label-invoice-number').value);
-    await saveSetting('labelDate', document.getElementById('label-date').value);
-    await saveSetting('labelDueDate', document.getElementById('label-due-date').value);
-    await saveSetting('labelSubtotal', document.getElementById('label-subtotal').value);
-    await saveSetting('labelTotal', document.getElementById('label-total').value);
-    await saveSetting('labelNotes', document.getElementById('label-notes').value);
-    await saveSetting('labelPaymentTerms', document.getElementById('label-payment-terms').value);
-    await saveSetting('labelTPS', document.getElementById('label-tps').value);
-    await saveSetting('labelTVQ', document.getElementById('label-tvq').value);
-    await saveSetting('labelDescription', document.getElementById('label-description').value);
-    await saveSetting('labelRate', document.getElementById('label-rate').value);
-    await saveSetting('labelHours', document.getElementById('label-hours').value);
-    await saveSetting('labelAmount', document.getElementById('label-amount').value);
-    
+
+    const settings = {
+      companyName: document.getElementById('company-name').value,
+      companyAddress: document.getElementById('company-address').value,
+      companyEmail: document.getElementById('company-email').value,
+      companyPhone: document.getElementById('company-phone').value,
+      companyWebsite: document.getElementById('company-website').value,
+      template: template,
+      accentColor: accentColor,
+      invoicePrefix: document.getElementById('invoice-prefix').value,
+      currency: document.getElementById('currency').value,
+      taxTPS: document.getElementById('tax-tps').checked,
+      taxTVQ: document.getElementById('tax-tvq').checked,
+      paymentTerms: document.getElementById('payment-terms').value,
+      notes: document.getElementById('default-notes').value,
+      labelInvoice: document.getElementById('label-invoice').value,
+      labelBillTo: document.getElementById('label-bill-to').value,
+      labelInvoiceNumber: document.getElementById('label-invoice-number').value,
+      labelDate: document.getElementById('label-date').value,
+      labelDueDate: document.getElementById('label-due-date').value,
+      labelSubtotal: document.getElementById('label-subtotal').value,
+      labelTotal: document.getElementById('label-total').value,
+      labelNotes: document.getElementById('label-notes').value,
+      labelPaymentTerms: document.getElementById('label-payment-terms').value,
+      labelTPS: document.getElementById('label-tps').value,
+      labelTVQ: document.getElementById('label-tvq').value,
+      labelDescription: document.getElementById('label-description').value,
+      labelRate: document.getElementById('label-rate').value,
+      labelHours: document.getElementById('label-hours').value,
+      labelAmount: document.getElementById('label-amount').value
+    };
+
+    await saveSettingsBulk(settings);
     showToast('Settings saved!', 'success');
   } catch (err) {
     showToast('Error saving settings.', 'error');
@@ -343,14 +346,7 @@ async function removeLogo() {
 async function resetSettings() {
   showConfirmModal('Reset all settings to defaults? Your invoices will not be deleted.', async () => {
     try {
-      const db = await openDB();
-      const tx = db.transaction(STORE_SETTINGS, 'readwrite');
-      const store = tx.objectStore(STORE_SETTINGS);
-      await new Promise((resolve, reject) => {
-        const req = store.clear();
-        req.onsuccess = resolve;
-        req.onerror = () => reject(req.error);
-      });
+      await clearSettings();
       showToast('Settings reset to defaults.', 'success');
       renderSettings();
     } catch (err) {

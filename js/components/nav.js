@@ -1,6 +1,15 @@
 function renderNav() {
   const links = document.querySelectorAll('.nav-link');
   const hash = window.location.hash || '#/';
+
+  const authContainer = document.getElementById('nav-auth');
+  if (authContainer) {
+    if (isLoggedIn()) {
+      authContainer.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="logout()">Log Out</button>`;
+    } else {
+      authContainer.innerHTML = '';
+    }
+  }
   
   links.forEach(link => {
     link.classList.remove('active');
