@@ -548,6 +548,48 @@ function getTemplatePreviewHTML(templateId, accent) {
       ${metaLeft}
       <div class="tp-body">${row}${rowAlt}${row}</div>
       ${total}
+    `,
+    executive: `
+      <div class="tp-executive-bar" style="background:${a};"></div>
+      <div class="tp-executive-header">
+        <div class="tp-header-text" style="color:${a};">Your Company</div>
+        ${metaRight}
+      </div>
+      <div class="tp-executive-line" style="background:${a};"></div>
+      <div class="tp-body">${row}${rowAlt}${row}</div>
+      ${total}
+    `,
+    minimal: `
+      <div class="tp-minimal-block" style="background:${a};"></div>
+      <div class="tp-header-text" style="color:${a};margin-left:22px;">Your Company</div>
+      ${metaLeft}
+      <div class="tp-body">${row}${rowAlt}${row}</div>
+      ${total}
+    `,
+    divider: `
+      <div class="tp-header-text" style="color:${a};">Your Company</div>
+      ${metaLeft}
+      <div class="tp-divider-line" style="background:${a};"></div>
+      <div class="tp-body">${row}${rowAlt}${row}</div>
+      ${total}
+    `,
+    dash: `
+      <div class="tp-dash-header">
+        <div class="tp-dash-bar" style="background:${a};"></div>
+        <div class="tp-header-text" style="color:${a};margin-left:8px;">Your Company</div>
+      </div>
+      ${metaLeft}
+      <div class="tp-body">${row}${rowAlt}${row}</div>
+      ${total}
+    `,
+    swiss: `
+      <div class="tp-swiss-header">
+        <div class="tp-swiss-square" style="background:${a};"></div>
+        <div class="tp-header-text" style="color:${a};">Your Company</div>
+      </div>
+      <div class="tp-swiss-line" style="background:${a};"></div>
+      <div class="tp-body">${row}${rowAlt}${row}</div>
+      ${total}
     `
   };
   

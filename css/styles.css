@@ -1011,6 +1011,81 @@ main {
   background: #3a3f50;
 }
 
+/* Executive thumbnail */
+.tp-executive-bar {
+  height: 3px;
+  width: calc(100% + 8px);
+  margin-left: -4px;
+  margin-right: -4px;
+  margin-bottom: 3px;
+  border-radius: 0 0 3px 3px;
+}
+
+.tp-executive-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1px;
+}
+
+.tp-executive-line {
+  height: 1px;
+  margin-bottom: 2px;
+  opacity: 0.5;
+}
+
+/* Minimal thumbnail */
+.tp-minimal-block {
+  height: 3px;
+  width: 18px;
+  border-radius: 1px;
+  margin-bottom: 2px;
+  margin-top: 2px;
+}
+
+/* Divider thumbnail */
+.tp-divider-line {
+  height: 2px;
+  width: 100%;
+  border-radius: 1px;
+  margin-bottom: 3px;
+}
+
+/* Dash thumbnail */
+.tp-dash-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+
+.tp-dash-bar {
+  width: 4px;
+  height: 8px;
+  border-radius: 1px;
+  flex-shrink: 0;
+}
+
+/* Swiss thumbnail */
+.tp-swiss-header {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-bottom: 2px;
+}
+
+.tp-swiss-square {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+}
+
+.tp-swiss-line {
+  height: 1px;
+  width: 100%;
+  margin-bottom: 3px;
+  opacity: 0.6;
+}
+
 /* Color picker */
 .color-grid {
   display: flex;
@@ -1984,6 +2059,53 @@ main {
   text-transform: uppercase;
 }
 
+/* Executive */
+.preview-executive-bar {
+  height: 4px;
+  margin: -2.5rem -2.5rem 1.25rem -2.5rem;
+}
+
+.preview-divider-line {
+  height: 2px;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.preview-divider-line-thin {
+  height: 1px;
+  width: 40%;
+  margin-bottom: 0.75rem;
+  opacity: 0.4;
+}
+
+.preview-minimal-block {
+  width: 24px;
+  height: 4px;
+  border-radius: 2px;
+  margin-bottom: 0.75rem;
+}
+
+.preview-dash-bar {
+  width: 6px;
+  border-radius: 2px;
+  height: 32px;
+  position: absolute;
+  left: 2.5rem;
+  top: 2.5rem;
+}
+
+.preview-swiss-square {
+  width: 10px;
+  height: 10px;
+  margin-bottom: 0.5rem;
+}
+
+.preview-swiss-line {
+  height: 2px;
+  width: 100%;
+  margin-bottom: 0.75rem;
+}
+
 /* Sidebar text */
 .preview-sidebar-text {
   color: white;
@@ -2118,4 +2240,83 @@ main {
 .preview-template-compact .preview-client {
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
+}
+
+/* Executive: thin line at top, light separator */
+.preview-template-executive .preview-table thead tr {
+  background: none !important;
+  border-bottom: 2px solid #e5e5e5;
+}
+.preview-template-executive .preview-table th {
+  color: #666 !important;
+  font-weight: 600;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.preview-template-executive .preview-client {
+  border-bottom: none;
+  margin-bottom: 1rem;
+}
+
+/* Minimal: accent block, clean table */
+.preview-template-minimal .preview-table thead tr {
+  background: none !important;
+  border-bottom: 2px solid #e5e5e5;
+}
+.preview-template-minimal .preview-table th {
+  color: #666 !important;
+  font-weight: 600;
+  font-size: 0.6875rem;
+}
+.preview-template-minimal .preview-client {
+  border-bottom: none;
+  margin-bottom: 1rem;
+}
+
+/* Divider: accent dividers between sections */
+.preview-template-divider .preview-table thead tr {
+  background: none !important;
+  border-bottom: 2px solid #e5e5e5;
+}
+.preview-template-divider .preview-table th {
+  color: #666 !important;
+  font-weight: 600;
+  font-size: 0.6875rem;
+}
+.preview-template-divider .preview-client {
+  border-bottom: none;
+  margin-bottom: 1rem;
+}
+
+/* Dash: vertical accent dash, clean */
+.preview-template-dash .preview-table thead tr {
+  background: none !important;
+  border-bottom: 2px solid #e5e5e5;
+}
+.preview-template-dash .preview-table th {
+  color: #666 !important;
+  font-weight: 600;
+  font-size: 0.6875rem;
+}
+.preview-template-dash .preview-client {
+  border-bottom: none;
+  margin-bottom: 1rem;
+}
+
+/* Swiss: square motif, accent line */
+.preview-template-swiss .preview-table thead tr {
+  background: none !important;
+  border-bottom: 2px solid #e5e5e5;
+}
+.preview-template-swiss .preview-table th {
+  color: #666 !important;
+  font-weight: 600;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.preview-template-swiss .preview-client {
+  border-bottom: none;
+  margin-bottom: 1rem;
 }

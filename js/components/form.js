@@ -1045,6 +1045,23 @@ function getTemplatePreviewStyle(template, accent, companyName, invoice, setting
         <div class="preview-classic-line-thin" style="background:${a};"></div>
       </div>`;
 
+    case 'executive':
+      return `<div class="preview-executive-bar" style="background:${a};"></div>`;
+
+    case 'minimal':
+      return `<div class="preview-minimal-block" style="background:${a};"></div>`;
+
+    case 'divider':
+      return `<div class="preview-divider-line" style="background:${a};"></div>
+      <div class="preview-divider-line-thin" style="background:${a};"></div>`;
+
+    case 'dash':
+      return `<div class="preview-dash-bar" style="background:${a};"></div>`;
+
+    case 'swiss':
+      return `<div class="preview-swiss-square" style="background:${a};"></div>
+      <div class="preview-swiss-line" style="background:${a};"></div>`;
+
     default:
       return `<div class="preview-accent-bar preview-rounded-bottom" style="background:${a};"></div>`;
   }

@@ -70,6 +70,36 @@ const TEMPLATES = [
     name: 'Corner',
     preview: 'Aa',
     style: 'corner-accent'
+  },
+  {
+    id: 'executive',
+    name: 'Executive',
+    preview: 'Aa',
+    style: 'top-line'
+  },
+  {
+    id: 'minimal',
+    name: 'Minimal',
+    preview: 'Aa',
+    style: 'accent-block'
+  },
+  {
+    id: 'divider',
+    name: 'Divider',
+    preview: 'Aa',
+    style: 'accent-rules'
+  },
+  {
+    id: 'dash',
+    name: 'Dash',
+    preview: 'Aa',
+    style: 'accent-dash'
+  },
+  {
+    id: 'swiss',
+    name: 'Swiss',
+    preview: 'Aa',
+    style: 'swiss-style'
   }
 ];
 
