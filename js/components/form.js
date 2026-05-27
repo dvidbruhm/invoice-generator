@@ -31,6 +31,8 @@ async function renderInvoiceForm(editId = null) {
       <div class="form-column">
         <form id="invoice-form">
           <input type="hidden" id="edit-id" value="${editId || ''}">
+            <input type="hidden" id="invoice-template" value="${escapeHTML(invoice?.template || mergedSettings.template)}">
+            <input type="hidden" id="invoice-accent-color" value="${escapeHTML(invoice?.accentColor || mergedSettings.accentColor)}">
           
           <div class="card">
             <div class="card-title">Invoice Details</div>
@@ -102,6 +104,35 @@ async function renderInvoiceForm(editId = null) {
           </div>
           
           <div class="card">
+            <div class="card-title">Template & Color</div>
+            <div class="template-grid" id="form-template-grid">
+              ${TEMPLATES.map(t => `
+                <div class="template-option ${t.id === (invoice?.template || mergedSettings.template) ? 'selected' : ''}" data-template="${t.id}">
+                  <div class="template-preview-card">
+                    ${getTemplatePreviewHTML(t.id, invoice?.accentColor || mergedSettings.accentColor)}
+                  </div>
+                  <div class="template-name">${escapeHTML(t.name)}</div>
+                </div>
+              `).join('')}
+            </div>
+            <div style="margin-top:1rem;">
+              <label style="font-size:0.8125rem;font-weight:500;color:var(--text-secondary);display:block;margin-bottom:0.5rem;">Accent Color</label>
+              <div class="color-grid" id="form-color-grid">
+                ${ACCENT_COLORS.map(c => `
+                  <div class="color-option ${c.value === (invoice?.accentColor || mergedSettings.accentColor) ? 'selected' : ''}" 
+                       data-color="${c.value}" 
+                       style="background: ${c.value};" 
+                       title="${escapeHTML(c.name)}"></div>
+                `).join('')}
+                <div class="color-option-custom ${ACCENT_COLORS.every(c => c.value !== (invoice?.accentColor || mergedSettings.accentColor)) ? 'selected' : ''}">
+                  <input type="color" id="form-custom-color" value="${escapeHTML(invoice?.accentColor || mergedSettings.accentColor)}" title="Choose custom color">
+                  <span>Custom</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <div class="card">
             <div class="card-title">Notes & Terms</div>
             <div class="form-group">
               <label for="invoice-notes">Notes</label>
@@ -121,7 +152,7 @@ async function renderInvoiceForm(editId = null) {
         <div class="preview-sticky">
           <div class="preview-header">
             <span>Live Preview</span>
-            <span class="preview-template-label" id="preview-template-label">${escapeHTML(mergedSettings.template)}</span>
+            <span class="preview-template-label" id="preview-template-label">${escapeHTML(TEMPLATES.find(t => t.id === (invoice?.template || mergedSettings.template))?.name || mergedSettings.template)}</span>
           </div>
           <div class="preview-container" id="live-preview">
             ${renderLivePreview(mergedSettings, {
@@ -432,12 +463,46 @@ function attachFormListeners() {
   if (!form) return;
   form.addEventListener('input', () => updatePreview());
   form.addEventListener('change', () => updatePreview());
+  
+  document.querySelectorAll('#form-template-grid .template-option').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('#form-template-grid .template-option').forEach(t => t.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('invoice-template').value = el.dataset.template;
+      updatePreview();
+    });
+  });
+  
+  document.querySelectorAll('#form-color-grid .color-option').forEach(el => {
+    el.addEventListener('click', () => {
+      document.querySelectorAll('#form-color-grid .color-option').forEach(c => c.classList.remove('selected'));
+      document.querySelectorAll('#form-color-grid .color-option-custom').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('invoice-accent-color').value = el.dataset.color;
+      updatePreview();
+    });
+  });
+  
+  const customPicker = document.getElementById('form-custom-color');
+  if (customPicker) {
+    customPicker.addEventListener('input', (e) => {
+      document.querySelectorAll('#form-color-grid .color-option').forEach(c => c.classList.remove('selected'));
+      document.querySelectorAll('#form-color-grid .color-option-custom').forEach(c => c.classList.add('selected'));
+      document.getElementById('invoice-accent-color').value = e.target.value;
+      updatePreview();
+    });
+  }
 }
 
 function updatePreview() {
   getAllSettings().then(settings => {
     const defaults = getDefaultSettings();
     const merged = { ...defaults, ...settings };
+    
+    const templateEl = document.getElementById('invoice-template');
+    const accentEl = document.getElementById('invoice-accent-color');
+    if (templateEl) merged.template = templateEl.value;
+    if (accentEl) merged.accentColor = accentEl.value;
     
     const rows = document.querySelectorAll('#line-items-body tr');
     const lineItems = [];
@@ -463,7 +528,10 @@ function updatePreview() {
     const previewEl = document.getElementById('live-preview');
     if (previewEl) previewEl.innerHTML = renderLivePreview(merged, invoiceData);
     const labelEl = document.getElementById('preview-template-label');
-    if (labelEl) labelEl.textContent = merged.template;
+    if (labelEl) {
+      const tpl = TEMPLATES.find(t => t.id === merged.template);
+      labelEl.textContent = tpl ? tpl.name : merged.template;
+    }
     const totalsEl = document.getElementById('totals');
     if (totalsEl) totalsEl.innerHTML = renderTotalsHTML(lineItems, merged);
     
@@ -507,6 +575,8 @@ async function handleFormSubmit(isDraft) {
     clientAddress,
     lineItems,
     notes,
+    template: document.getElementById('invoice-template')?.value || undefined,
+    accentColor: document.getElementById('invoice-accent-color')?.value || undefined,
     status: status || 'draft',
     createdAt: editId ? (await getInvoice(editId)).createdAt : new Date().toISOString(),
     updatedAt: new Date().toISOString()
@@ -524,6 +594,8 @@ async function handleFormSubmit(isDraft) {
       const settings = await getAllSettings();
       const defaults = getDefaultSettings();
       const mergedSettings = { ...defaults, ...settings };
+      if (invoice.template) mergedSettings.template = invoice.template;
+      if (invoice.accentColor) mergedSettings.accentColor = invoice.accentColor;
       await generatePDF(invoice, mergedSettings);
       showToast('Invoice saved and PDF downloaded!', 'success');
     } else {

@@ -130,6 +130,8 @@ async function downloadPDF(id) {
     const settings = await getAllSettings();
     const defaults = getDefaultSettings();
     const mergedSettings = { ...defaults, ...settings };
+    if (invoice.template) mergedSettings.template = invoice.template;
+    if (invoice.accentColor) mergedSettings.accentColor = invoice.accentColor;
     await generatePDF(invoice, mergedSettings);
     showToast('PDF downloaded!', 'success');
   } catch (err) {
