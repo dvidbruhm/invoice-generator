@@ -107,11 +107,10 @@ async function renderInvoiceForm(editId = null) {
               <table class="line-items" id="line-items-table">
                 <thead>
                   <tr>
-                    <th style="width: 12%;">Date</th>
-                    <th style="width: ${mergedSettings.colDescription || 35}%;">${escapeHTML(mergedSettings.labelDescription || 'Description')}</th>
-                    <th style="width: ${mergedSettings.colRate || 15}%;">${escapeHTML(mergedSettings.labelRate || 'Rate')}</th>
-                    <th style="width: ${mergedSettings.colHours || 15}%;">${escapeHTML(mergedSettings.labelHours || 'Hours')}</th>
-                    <th style="width: ${mergedSettings.colAmount || 20}%;">${escapeHTML(mergedSettings.labelAmount || 'Amount')}</th>
+                    <th style="width: 15%;">Date</th>
+                    <th style="width: 22%;">${escapeHTML(mergedSettings.labelRate || 'Rate')}</th>
+                    <th style="width: 22%;">${escapeHTML(mergedSettings.labelHours || 'Hours')}</th>
+                    <th style="width: 31%;">${escapeHTML(mergedSettings.labelAmount || 'Amount')}</th>
                     <th style="width: 10%;"></th>
                   </tr>
                 </thead>
@@ -244,9 +243,8 @@ async function renderInvoiceForm(editId = null) {
 function renderLineItemRow(item, index, settings, currencySymbol, totalItems) {
   const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
   return `
-    <tr data-index="${index}">
-      <td><input type="date" class="item-date" value="${escapeHTML(item.date || '')}"></td>
-      <td><textarea class="item-description" placeholder="Description of work" required rows="1">${escapeHTML(item.description)}</textarea></td>
+    <tr data-item-index="${index}" class="item-row-inputs">
+      <td rowspan="2"><input type="date" class="item-date" value="${escapeHTML(item.date || '')}"></td>
       <td>
         <div style="position:relative;">
           <span style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.8125rem;pointer-events:none;">${currencySymbol}</span>
@@ -255,13 +253,16 @@ function renderLineItemRow(item, index, settings, currencySymbol, totalItems) {
       </td>
       <td><input type="number" class="item-hours" value="${escapeHTML(String(item.hours))}" placeholder="0" step="0.5" min="0" required></td>
       <td class="amount-cell">${formatCurrency(amount, settings.currency)}</td>
-      <td>
+      <td rowspan="2">
         <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
           <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" ${index === 0 ? 'disabled' : ''}>&#8593;</button>
           <button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" ${index === totalItems - 1 ? 'disabled' : ''}>&#8595;</button>
           <button type="button" class="remove-btn" onclick="removeLineItem(this)" ${index === 0 ? 'disabled' : ''}>&times;</button>
         </div>
       </td>
+    </tr>
+    <tr data-item-index="${index}" class="item-row-desc">
+      <td colspan="3"><textarea class="item-description" placeholder="Description of work" required rows="1">${escapeHTML(item.description)}</textarea></td>
     </tr>
   `;
 }
@@ -297,18 +298,20 @@ function getNextWeekday(dateStr) {
 
 function addLineItem() {
   const tbody = document.getElementById('line-items-body');
-  const index = tbody.children.length;
-  const row = document.createElement('tr');
+  const inputRows = tbody.querySelectorAll('tr.item-row-inputs');
+  const index = inputRows.length;
   const settings = formCachedSettings || getDefaultSettings();
   const currencySymbol = getCurrencySymbol(settings.currency);
-  const lastRow = tbody.lastElementChild;
-  const defaultDate = lastRow
-    ? getNextWeekday(lastRow.querySelector('.item-date')?.value)
+  const lastInputRow = inputRows[inputRows.length - 1];
+  const defaultDate = lastInputRow
+    ? getNextWeekday(lastInputRow.querySelector('.item-date')?.value)
     : (document.getElementById('invoice-date')?.value || new Date().toISOString().split('T')[0]);
-  row.dataset.index = index;
-  row.innerHTML = `
-    <td><input type="date" class="item-date" value="${escapeHTML(defaultDate)}"></td>
-    <td><textarea class="item-description" placeholder="Description of work" required rows="1"></textarea></td>
+
+  const inputRow = document.createElement('tr');
+  inputRow.dataset.itemIndex = index;
+  inputRow.className = 'item-row-inputs';
+  inputRow.innerHTML = `
+    <td rowspan="2"><input type="date" class="item-date" value="${escapeHTML(defaultDate)}"></td>
     <td>
       <div style="position:relative;">
         <span style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.8125rem;pointer-events:none;">${currencySymbol}</span>
@@ -317,7 +320,7 @@ function addLineItem() {
     </td>
     <td><input type="number" class="item-hours" placeholder="0" step="0.5" min="0" required></td>
     <td class="amount-cell">${formatCurrency(0, settings.currency)}</td>
-    <td>
+    <td rowspan="2">
       <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
         <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" disabled>&#8593;</button>
         <button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" disabled>&#8595;</button>
@@ -325,17 +328,28 @@ function addLineItem() {
       </div>
     </td>
   `;
-  tbody.appendChild(row);
+
+  const descRow = document.createElement('tr');
+  descRow.dataset.itemIndex = index;
+  descRow.className = 'item-row-desc';
+  descRow.innerHTML = `
+    <td colspan="3"><textarea class="item-description" placeholder="Description of work" required rows="1"></textarea></td>
+  `;
+
+  tbody.appendChild(inputRow);
+  tbody.appendChild(descRow);
   updateReorderButtonsState();
-  
-  const descInput = row.querySelector('.item-description');
+
+  const descInput = descRow.querySelector('.item-description');
   if (descInput) descInput.focus();
 }
 
 function removeLineItem(btn) {
   const tbody = document.getElementById('line-items-body');
-  if (tbody.children.length > 1) {
-    btn.closest('tr').remove();
+  if (tbody.querySelectorAll('tr.item-row-inputs').length > 1) {
+    const row = btn.closest('tr');
+    const itemIndex = row.dataset.itemIndex;
+    tbody.querySelectorAll(`tr[data-item-index="${itemIndex}"]`).forEach(r => r.remove());
     updateReorderButtonsState();
     updateTotals();
   }
@@ -343,23 +357,35 @@ function removeLineItem(btn) {
 
 function moveLineItem(btn, direction) {
   const row = btn.closest('tr');
-  const tbody = document.getElementById('line-items-body');
-  if (direction === -1 && row.previousElementSibling) {
-    tbody.insertBefore(row, row.previousElementSibling);
-  } else if (direction === 1 && row.nextElementSibling) {
-    tbody.insertBefore(row.nextElementSibling, row);
+  const itemIndex = row.dataset.itemIndex;
+  const rows = Array.from(document.querySelectorAll(`#line-items-body tr[data-item-index="${itemIndex}"]`));
+
+  if (direction === -1) {
+    const prevItemFirstRow = rows[0].previousElementSibling?.previousElementSibling;
+    if (prevItemFirstRow) {
+      rows.forEach(r => prevItemFirstRow.before(r));
+    }
+  } else if (direction === 1) {
+    const nextItemFirstRow = rows[rows.length - 1].nextElementSibling;
+    if (nextItemFirstRow) {
+      const nextIndex = nextItemFirstRow.dataset.itemIndex;
+      const nextRows = Array.from(document.querySelectorAll(`#line-items-body tr[data-item-index="${nextIndex}"]`));
+      nextRows.forEach(r => rows[0].before(r));
+    }
   }
   updateReorderButtonsState();
   updateTotals();
 }
 
 function updateReorderButtonsState() {
-  const rows = document.querySelectorAll('#line-items-body tr');
-  rows.forEach((row, i) => {
+  const tbody = document.getElementById('line-items-body');
+  const inputRows = tbody.querySelectorAll('tr.item-row-inputs');
+  const total = inputRows.length;
+  inputRows.forEach((row, i) => {
     const up = row.querySelector('.reorder-up');
     const down = row.querySelector('.reorder-down');
     if (up) up.disabled = i === 0;
-    if (down) down.disabled = i === rows.length - 1;
+    if (down) down.disabled = i === total - 1;
   });
 }
 
@@ -515,12 +541,14 @@ function applyCSVImport() {
 
   const tbody = document.getElementById('line-items-body');
   const existingItems = [];
-  tbody.querySelectorAll('tr').forEach(row => {
-    const desc = row.querySelector('.item-description')?.value;
+  tbody.querySelectorAll('tr.item-row-inputs').forEach(row => {
+    const descRow = row.nextElementSibling;
+    const desc = descRow?.querySelector('.item-description')?.value;
     const rate = row.querySelector('.item-rate')?.value;
     const hours = row.querySelector('.item-hours')?.value;
+    const date = row.querySelector('.item-date')?.value;
     if (desc || rate || hours) {
-      existingItems.push({ description: desc || '', rate: rate || '', hours: hours || '' });
+      existingItems.push({ date: date || '', description: desc || '', rate: rate || '', hours: hours || '' });
     }
   });
 
@@ -530,15 +558,16 @@ function applyCSVImport() {
   const settings = formCachedSettings || getDefaultSettings();
   const currencySymbol = getCurrencySymbol(settings.currency);
   allItems.forEach((item, i) => {
-    const row = document.createElement('tr');
-    row.dataset.index = i;
     const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
     const defaultDate = i === 0
       ? (document.getElementById('invoice-date')?.value || new Date().toISOString().split('T')[0])
       : getNextWeekday(allItems[i - 1].date || '');
-    row.innerHTML = `
-      <td><input type="date" class="item-date" value="${escapeHTML(item.date || defaultDate)}"></td>
-      <td><textarea class="item-description" placeholder="Description of work" required rows="1">${escapeHTML(item.description)}</textarea></td>
+
+    const inputRow = document.createElement('tr');
+    inputRow.dataset.itemIndex = i;
+    inputRow.className = 'item-row-inputs';
+    inputRow.innerHTML = `
+      <td rowspan="2"><input type="date" class="item-date" value="${escapeHTML(item.date || defaultDate)}"></td>
       <td>
         <div style="position:relative;">
           <span style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.8125rem;pointer-events:none;">${currencySymbol}</span>
@@ -547,7 +576,7 @@ function applyCSVImport() {
       </td>
       <td><input type="number" class="item-hours" value="${escapeHTML(item.hours)}" placeholder="0" step="0.5" min="0" required></td>
       <td class="amount-cell">${formatCurrency(amount, settings.currency)}</td>
-      <td>
+      <td rowspan="2">
         <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
           <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" ${i === 0 ? 'disabled' : ''}>&#8593;</button>
           <button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" ${i === allItems.length - 1 ? 'disabled' : ''}>&#8595;</button>
@@ -555,7 +584,16 @@ function applyCSVImport() {
         </div>
       </td>
     `;
-    tbody.appendChild(row);
+
+    const descRow = document.createElement('tr');
+    descRow.dataset.itemIndex = i;
+    descRow.className = 'item-row-desc';
+    descRow.innerHTML = `
+      <td colspan="3"><textarea class="item-description" placeholder="Description of work" required rows="1">${escapeHTML(item.description)}</textarea></td>
+    `;
+
+    tbody.appendChild(inputRow);
+    tbody.appendChild(descRow);
   });
 
   updateTotals();
@@ -578,8 +616,10 @@ function attachLineItemListeners() {
   tbody.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
       const row = e.target.closest('tr');
-      const isLastRow = row === tbody.lastElementChild;
-      if (isLastRow) {
+      const itemIndex = parseInt(row.dataset.itemIndex, 10);
+      const allIndices = Array.from(tbody.querySelectorAll('tr[data-item-index]')).map(r => parseInt(r.dataset.itemIndex, 10));
+      const maxIndex = Math.max(...allIndices);
+      if (itemIndex === maxIndex) {
         e.preventDefault();
         addLineItem();
       }
@@ -645,17 +685,18 @@ function updatePreview() {
   if (templateEl) merged.template = templateEl.value;
   if (accentEl) merged.accentColor = accentEl.value;
   
-  const rows = document.querySelectorAll('#line-items-body tr');
+  const inputRows = document.querySelectorAll('#line-items-body tr.item-row-inputs');
   const lineItems = [];
-  rows.forEach(row => {
+  inputRows.forEach(row => {
+    const descRow = row.nextElementSibling;
     lineItems.push({
       date: row.querySelector('.item-date')?.value || '',
-      description: row.querySelector('.item-description').value,
-      rate: row.querySelector('.item-rate').value,
-      hours: row.querySelector('.item-hours').value
+      description: descRow?.querySelector('.item-description')?.value || '',
+      rate: row.querySelector('.item-rate')?.value || '',
+      hours: row.querySelector('.item-hours')?.value || ''
     });
   });
-  
+
   const invoiceData = {
     number: document.getElementById('invoice-number').value,
     date: document.getElementById('invoice-date').value,
@@ -697,17 +738,18 @@ async function handleFormSubmit(isDraft) {
   const notes = document.getElementById('invoice-notes').value;
   const status = document.getElementById('invoice-status').value;
   
-  const rows = document.querySelectorAll('#line-items-body tr');
+  const inputRows = document.querySelectorAll('#line-items-body tr.item-row-inputs');
   const lineItems = [];
-  rows.forEach(row => {
+  inputRows.forEach(row => {
+    const descRow = row.nextElementSibling;
     lineItems.push({
       date: row.querySelector('.item-date')?.value || '',
-      description: row.querySelector('.item-description').value,
-      rate: row.querySelector('.item-rate').value,
-      hours: row.querySelector('.item-hours').value
+      description: descRow?.querySelector('.item-description')?.value || '',
+      rate: row.querySelector('.item-rate')?.value || '',
+      hours: row.querySelector('.item-hours')?.value || ''
     });
   });
-  
+
   const invoice = {
     id: editId || Date.now().toString(),
     number,

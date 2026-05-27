@@ -203,7 +203,11 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
       doc.setFont(undefined, 'bold');
     } else {
       doc.setFillColor(accent.r, accent.g, accent.b);
-      doc.rect(margin, yPos, contentWidth, headerHeight, 'F');
+      if (doc.roundedRect) {
+        doc.roundedRect(margin, yPos, contentWidth, headerHeight, 2, 2, 'F');
+      } else {
+        doc.rect(margin, yPos, contentWidth, headerHeight, 'F');
+      }
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(8);
       doc.setFont(undefined, 'bold');
@@ -619,9 +623,17 @@ function renderSubtle(doc, invoice, settings, accent, margin, contentWidth, page
 function renderStripe(doc, invoice, settings, accent, margin, contentWidth, pageWidth, subtotal, tps, tvq, total) {
   let y = 18;
   doc.setFillColor(accent.r, accent.g, accent.b);
-  doc.rect(0, y, pageWidth, 4, 'F');
+  if (doc.roundedRect) {
+    doc.roundedRect(0, y, pageWidth, 4, 2, 2, 'F');
+  } else {
+    doc.rect(0, y, pageWidth, 4, 'F');
+  }
   doc.setFillColor(accent.r, accent.g, accent.b);
-  doc.rect(0, y + 6, pageWidth, 1, 'F');
+  if (doc.roundedRect) {
+    doc.roundedRect(0, y + 6, pageWidth, 1, 0.5, 0.5, 'F');
+  } else {
+    doc.rect(0, y + 6, pageWidth, 1, 'F');
+  }
   y += 14;
 
   doc.setFontSize(16);
