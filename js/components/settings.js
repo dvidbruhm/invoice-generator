@@ -222,6 +222,7 @@ async function renderSettings() {
       
       <div class="btn-group">
         <button type="submit" class="btn btn-primary">Save Settings</button>
+        <button type="button" class="btn btn-danger" onclick="resetSettings()">Reset to Defaults</button>
       </div>
     </form>
   `;
@@ -332,9 +333,31 @@ function handleLogoUpload(e) {
 
 async function removeLogo() {
   await saveSetting('logo', null);
-  document.getElementById('logo-preview').innerHTML = '<span style="color: var(--text-secondary); font-size: 0.75rem;">No logo</span>';
+  const preview = document.getElementById('logo-preview');
+  if (preview) preview.innerHTML = '<span style="color: var(--text-secondary); font-size: 0.75rem;">No logo</span>';
+  const removeBtn = document.querySelector('button[onclick="removeLogo()"]');
+  if (removeBtn) removeBtn.remove();
   showToast('Logo removed.', 'success');
-  renderSettings();
+}
+
+async function resetSettings() {
+  showConfirmModal('Reset all settings to defaults? Your invoices will not be deleted.', async () => {
+    try {
+      const db = await openDB();
+      const tx = db.transaction(STORE_SETTINGS, 'readwrite');
+      const store = tx.objectStore(STORE_SETTINGS);
+      await new Promise((resolve, reject) => {
+        const req = store.clear();
+        req.onsuccess = resolve;
+        req.onerror = () => reject(req.error);
+      });
+      showToast('Settings reset to defaults.', 'success');
+      renderSettings();
+    } catch (err) {
+      showToast('Error resetting settings.', 'error');
+      console.error(err);
+    }
+  });
 }
 
 function getTemplatePreviewHTML(templateId, accent) {

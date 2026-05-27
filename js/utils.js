@@ -16,9 +16,15 @@ function formatCurrency(amount, currency) {
 }
 
 function getCurrencySymbol(currency) {
-  if (currency === 'EUR') return '€';
+  if (currency === 'EUR') return '\u20AC';
   if (currency === 'USD') return '$';
   return '$';
+}
+
+function formatDate(dateStr) {
+  if (!dateStr) return '';
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 function showLoading() {
@@ -47,6 +53,23 @@ function getStatusBadge(status) {
   const bg = bgColors[status] || bgColors.draft;
   const label = (status || 'draft').charAt(0).toUpperCase() + (status || 'draft').slice(1);
   return `<span class="status-badge" style="color:${color};background:${bg};">${escapeHTML(label)}</span>`;
+}
+
+function debounce(fn, ms) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
+async function getClientList() {
+  try {
+    const invoices = await getAllInvoices();
+    return [...new Set(invoices.map(inv => inv.clientName).filter(Boolean))];
+  } catch (e) {
+    return [];
+  }
 }
 
 function parseCSV(text) {

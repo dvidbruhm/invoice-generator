@@ -32,6 +32,16 @@ function addLogo(doc, logo, x, y, width, height) {
   return false;
 }
 
+function checkPageBreak(doc, y, neededSpace = 20) {
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 20;
+  if (y + neededSpace > pageHeight - margin) {
+    doc.addPage();
+    return margin + 10;
+  }
+  return y;
+}
+
 function renderTemplate(doc, invoice, settings) {
   const { subtotal, tps, tvq, total } = calculateTotals(invoice.lineItems, settings);
   const accent = hexToRgb(settings.accentColor);
@@ -85,6 +95,7 @@ function renderTemplate(doc, invoice, settings) {
 }
 
 function renderHeader(doc, invoice, settings, accent, margin, contentWidth, pageWidth, y) {
+  y = checkPageBreak(doc, y, 45);
   if (settings.logo) {
     addLogo(doc, settings.logo, margin, y, 25, 25);
     doc.setFontSize(18);
@@ -102,6 +113,7 @@ function renderHeader(doc, invoice, settings, accent, margin, contentWidth, page
   if (settings.companyAddress) { doc.text(settings.companyAddress, margin, infoY); infoY += 4; }
   if (settings.companyEmail) { doc.text(settings.companyEmail, margin, infoY); infoY += 4; }
   if (settings.companyPhone) { doc.text(settings.companyPhone, margin, infoY); infoY += 4; }
+  if (settings.companyWebsite) { doc.text(settings.companyWebsite, margin, infoY); infoY += 4; }
   
   doc.setFontSize(14);
   doc.setTextColor(0, 0, 0);
@@ -114,10 +126,11 @@ function renderHeader(doc, invoice, settings, accent, margin, contentWidth, page
   doc.text(`${settings.labelDate || 'Date'}: ${invoice.date}`, pageWidth - margin, metaY, { align: 'right' }); metaY += 5;
   doc.text(`${settings.labelDueDate || 'Due'}: ${invoice.dueDate}`, pageWidth - margin, metaY, { align: 'right' });
   
-  return y + 40;
+  return y + 45;
 }
 
 function renderClientSection(doc, invoice, settings, accent, margin, contentWidth, y) {
+  y = checkPageBreak(doc, y, 30);
   doc.setFontSize(10);
   doc.setTextColor(accent.r, accent.g, accent.b);
   doc.text(settings.labelBillTo || 'Bill To:', margin, y);
@@ -146,23 +159,33 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
     settings.labelAmount || 'Amount'
   ];
   const rowHeight = 8;
+  const headerHeight = 7;
   
-  doc.setFillColor(accent.r, accent.g, accent.b);
-  doc.rect(margin, y, contentWidth, 7, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
-  doc.setFont(undefined, 'bold');
-  doc.text(headers[0], colX[0] + 2, y + 5);
-  doc.text(headers[1], colX[1], y + 5);
-  doc.text(headers[2], colX[2], y + 5);
-  doc.text(headers[3], colX[3], y + 5);
+  function drawTableHeader(yPos) {
+    doc.setFillColor(accent.r, accent.g, accent.b);
+    doc.rect(margin, yPos, contentWidth, headerHeight, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(8);
+    doc.setFont(undefined, 'bold');
+    doc.text(headers[0], colX[0] + 2, yPos + 5);
+    doc.text(headers[1], colX[1], yPos + 5);
+    doc.text(headers[2], colX[2], yPos + 5);
+    doc.text(headers[3], colX[3], yPos + 5);
+    doc.setFont(undefined, 'normal');
+    doc.setTextColor(0, 0, 0);
+    return yPos + headerHeight + 3;
+  }
   
-  doc.setFont(undefined, 'normal');
-  doc.setTextColor(0, 0, 0);
-  let currentY = y + 10;
+  let currentY = drawTableHeader(y);
+  const tableStartY = y;
   
   invoice.lineItems.forEach((item, i) => {
     const amount = parseFloat(item.rate) * parseFloat(item.hours);
+    currentY = checkPageBreak(doc, currentY, rowHeight + 2);
+    if (currentY <= 35 && i > 0) {
+      currentY = drawTableHeader(currentY);
+    }
+    
     if (i % 2 === 0) {
       doc.setFillColor(248, 248, 248);
       doc.rect(margin, currentY - 3, contentWidth, rowHeight, 'F');
@@ -170,39 +193,39 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
     
     doc.setFontSize(9);
     doc.text(item.description, colX[0] + 2, currentY);
-    doc.text(formatCurrency(parseFloat(item.rate)), colX[1], currentY);
+    doc.text(formatCurrency(parseFloat(item.rate), settings.currency), colX[1], currentY);
     doc.text(item.hours, colX[2], currentY);
-    doc.text(formatCurrency(amount), colX[3], currentY, { align: 'right' });
-    
+    doc.text(formatCurrency(amount, settings.currency), colX[3], currentY, { align: 'right' });
     currentY += rowHeight;
   });
   
   doc.setDrawColor(200, 200, 200);
   doc.setLineWidth(0.5);
-  doc.line(margin, y, margin + contentWidth, y);
+  doc.line(margin, tableStartY, margin + contentWidth, tableStartY);
   doc.line(margin, currentY - 2, margin + contentWidth, currentY - 2);
   
   return currentY + 5;
 }
 
 function renderTotals(doc, settings, accent, margin, contentWidth, y, subtotal, tps, tvq, total) {
+  y = checkPageBreak(doc, y, 35);
   const totalsX = margin + contentWidth - 70;
   
   doc.setFontSize(9);
   doc.setTextColor(100, 100, 100);
   doc.text(`${settings.labelSubtotal || 'Subtotal'}:`, totalsX, y);
-  doc.text(formatCurrency(subtotal), margin + contentWidth, y, { align: 'right' });
+  doc.text(formatCurrency(subtotal, settings.currency), margin + contentWidth, y, { align: 'right' });
   y += 6;
   
   if (settings.taxTPS) {
     doc.text(`${settings.labelTPS || 'TPS'} (${(settings.tpsRate * 100).toFixed(1)}%):`, totalsX, y);
-    doc.text(formatCurrency(tps), margin + contentWidth, y, { align: 'right' });
+    doc.text(formatCurrency(tps, settings.currency), margin + contentWidth, y, { align: 'right' });
     y += 6;
   }
   
   if (settings.taxTVQ) {
     doc.text(`${settings.labelTVQ || 'TVQ'} (${(settings.tvqRate * 100).toFixed(2)}%):`, totalsX, y);
-    doc.text(formatCurrency(tvq), margin + contentWidth, y, { align: 'right' });
+    doc.text(formatCurrency(tvq, settings.currency), margin + contentWidth, y, { align: 'right' });
     y += 6;
   }
   
@@ -215,12 +238,13 @@ function renderTotals(doc, settings, accent, margin, contentWidth, y, subtotal, 
   doc.setFont(undefined, 'bold');
   doc.setTextColor(accent.r, accent.g, accent.b);
   doc.text(`${settings.labelTotal || 'Total'}:`, totalsX, y);
-  doc.text(formatCurrency(total), margin + contentWidth, y, { align: 'right' });
+  doc.text(formatCurrency(total, settings.currency), margin + contentWidth, y, { align: 'right' });
   
   return y + 15;
 }
 
 function renderFooter(doc, settings, accent, margin, contentWidth, y, pageHeight, pageWidth) {
+  y = checkPageBreak(doc, y, 30);
   if (settings.notes || settings.paymentTerms) {
     y += 10;
     doc.setDrawColor(220, 220, 220);
@@ -366,6 +390,7 @@ function renderSidebar(doc, invoice, settings, accent, margin, contentWidth, pag
   if (settings.companyAddress) { doc.text(settings.companyAddress, 22, sidebarY, { align: 'center' }); sidebarY += 5; }
   if (settings.companyEmail) { doc.text(settings.companyEmail, 22, sidebarY, { align: 'center' }); sidebarY += 5; }
   if (settings.companyPhone) { doc.text(settings.companyPhone, 22, sidebarY, { align: 'center' }); sidebarY += 5; }
+  if (settings.companyWebsite) { doc.text(settings.companyWebsite, 22, sidebarY, { align: 'center' }); sidebarY += 5; }
   
   const sideMargin = 55;
   const sideWidth = pageWidth - sideMargin - margin;

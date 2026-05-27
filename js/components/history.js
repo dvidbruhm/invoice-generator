@@ -16,7 +16,23 @@ async function renderHistory() {
       
       <div class="search-bar">
         <input type="text" id="search-input" placeholder="Search by client, invoice number, or date...">
+        <select id="history-sort" style="padding:0.625rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.875rem;font-family:inherit;background:var(--surface);color:var(--text);">
+          <option value="date-desc">Date: Newest First</option>
+          <option value="date-asc">Date: Oldest First</option>
+          <option value="amount-desc">Amount: High to Low</option>
+          <option value="amount-asc">Amount: Low to High</option>
+        </select>
+        <select id="history-status" style="padding:0.625rem 0.75rem;border:1px solid var(--border);border-radius:var(--radius);font-size:0.875rem;font-family:inherit;background:var(--surface);color:var(--text);">
+          <option value="">All Statuses</option>
+          ${INVOICE_STATUSES.map(s => `<option value="${s}">${s.charAt(0).toUpperCase() + s.slice(1)}</option>`).join('')}
+        </select>
         <a href="#/create" class="btn btn-primary">New Invoice</a>
+      </div>
+      
+      <div style="display:flex;gap:0.75rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" onclick="exportInvoices()">Export JSON</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('import-file').click()">Import JSON</button>
+        <input type="file" id="import-file" accept=".json" style="display:none;" onchange="handleImportInvoices(event)">
       </div>
       
       <div id="history-content">
@@ -24,8 +40,14 @@ async function renderHistory() {
       </div>
     `;
     
-    document.getElementById('search-input').addEventListener('input', (e) => {
-      filterHistory(e.target.value, mergedSettings);
+    document.getElementById('search-input').addEventListener('input', () => {
+      refreshHistoryView(mergedSettings);
+    });
+    document.getElementById('history-sort').addEventListener('change', () => {
+      refreshHistoryView(mergedSettings);
+    });
+    document.getElementById('history-status').addEventListener('change', () => {
+      refreshHistoryView(mergedSettings);
     });
     
     renderNav();
@@ -62,20 +84,21 @@ function renderHistoryTable(invoices, settings) {
           </thead>
           <tbody id="history-tbody">
             ${invoices.map(inv => {
-              const { total } = calculateTotals(inv.lineItems, { taxTPS: settings.taxTPS, taxTVQ: settings.taxTVQ, tpsRate: settings.tpsRate, tvqRate: settings.tvqRate, currency: settings.currency });
+              const { total } = calculateTotals(inv.lineItems, { taxTPS: settings.taxTPS, taxTVQ: settings.taxTVQ, tpsRate: settings.tpsRate, tvqRate: settings.tvqRate });
               return `
                 <tr data-id="${escapeHTML(inv.id)}" data-search="${escapeHTML(inv.number.toLowerCase())} ${escapeHTML(inv.clientName.toLowerCase())} ${escapeHTML(inv.date)}">
                   <td><strong>${escapeHTML(inv.number)}</strong></td>
                   <td>${escapeHTML(inv.clientName)}</td>
                   <td>${getStatusBadge(inv.status)}</td>
-                  <td>${escapeHTML(inv.date)}</td>
-                  <td>${escapeHTML(inv.dueDate)}</td>
+                  <td>${escapeHTML(formatDate(inv.date))}</td>
+                  <td>${escapeHTML(formatDate(inv.dueDate))}</td>
                   <td>${formatCurrency(total, settings.currency)}</td>
                   <td>
                     <div class="history-actions">
                       <a href="#/edit/${escapeHTML(inv.id)}" class="btn btn-sm btn-secondary">Edit</a>
                       <button class="btn btn-sm btn-secondary" onclick="downloadPDF('${escapeHTML(inv.id)}')">PDF</button>
                       <button class="btn btn-sm btn-secondary" onclick="duplicateInvoice('${escapeHTML(inv.id)}')">Duplicate</button>
+                      ${inv.status !== 'paid' ? `<button class="btn btn-sm btn-secondary" onclick="updateInvoiceStatus('${escapeHTML(inv.id)}', 'paid')">Mark Paid</button>` : ''}
                       <button class="btn btn-sm btn-danger" onclick="deleteInvoiceConfirm('${escapeHTML(inv.id)}')">Delete</button>
                     </div>
                   </td>
@@ -108,18 +131,47 @@ function renderEmptyState() {
   `;
 }
 
-async function filterHistory(query, settings) {
-  const invoices = await getAllInvoices();
-  const filtered = invoices.filter(inv => {
-    const searchStr = `${inv.number} ${inv.clientName} ${inv.date}`.toLowerCase();
-    return searchStr.includes(query.toLowerCase());
+async function refreshHistoryView(settings) {
+  const query = document.getElementById('search-input').value;
+  const sort = document.getElementById('history-sort').value;
+  const statusFilter = document.getElementById('history-status').value;
+  
+  let invoices = await getAllInvoices();
+  
+  if (query) {
+    const q = query.toLowerCase();
+    invoices = invoices.filter(inv => {
+      return `${inv.number} ${inv.clientName} ${inv.date}`.toLowerCase().includes(q);
+    });
+  }
+  
+  if (statusFilter) {
+    invoices = invoices.filter(inv => inv.status === statusFilter);
+  }
+  
+  invoices.sort((a, b) => {
+    switch (sort) {
+      case 'date-asc': return new Date(a.date) - new Date(b.date);
+      case 'date-desc': return new Date(b.date) - new Date(a.date);
+      case 'amount-asc': {
+        const ta = calculateTotals(a.lineItems, settings).total;
+        const tb = calculateTotals(b.lineItems, settings).total;
+        return ta - tb;
+      }
+      case 'amount-desc': {
+        const ta = calculateTotals(a.lineItems, settings).total;
+        const tb = calculateTotals(b.lineItems, settings).total;
+        return tb - ta;
+      }
+      default: return new Date(b.date) - new Date(a.date);
+    }
   });
   
   const content = document.getElementById('history-content');
-  content.innerHTML = filtered.length > 0 ? renderHistoryTable(filtered, settings) : `
+  content.innerHTML = invoices.length > 0 ? renderHistoryTable(invoices, settings) : `
     <div class="empty-state">
       <h3>No matching invoices</h3>
-      <p>Try a different search term.</p>
+      <p>Try a different search term or filter.</p>
     </div>
   `;
 }
@@ -181,4 +233,63 @@ async function deleteInvoiceConfirm(id) {
       console.error(err);
     }
   });
+}
+
+async function updateInvoiceStatus(id, status) {
+  try {
+    const invoice = await getInvoice(id);
+    if (!invoice) throw new Error('Invoice not found');
+    invoice.status = status;
+    invoice.updatedAt = new Date().toISOString();
+    await saveInvoice(invoice);
+    showToast(`Invoice marked as ${status}.`, 'success');
+    renderHistory();
+  } catch (err) {
+    showToast('Error updating status.', 'error');
+    console.error(err);
+  }
+}
+
+async function exportInvoices() {
+  try {
+    const invoices = await getAllInvoices();
+    const blob = new Blob([JSON.stringify(invoices, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `invoices-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Invoices exported!', 'success');
+  } catch (err) {
+    showToast('Export failed.', 'error');
+    console.error(err);
+  }
+}
+
+function handleImportInvoices(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+  
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!Array.isArray(data)) throw new Error('Invalid file format: expected an array');
+      let count = 0;
+      for (const inv of data) {
+        if (inv.id && inv.number) {
+          await saveInvoice(inv);
+          count++;
+        }
+      }
+      showToast(`Imported ${count} invoice${count !== 1 ? 's' : ''}!`, 'success');
+      renderHistory();
+    } catch (err) {
+      showToast('Import failed: ' + err.message, 'error');
+      console.error(err);
+    }
+  };
+  reader.readAsText(file);
 }

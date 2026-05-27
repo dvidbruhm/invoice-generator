@@ -1,11 +1,33 @@
+let formCachedSettings = null;
+let formDirty = false;
+
+function setFormDirty() {
+  if (!formDirty) {
+    formDirty = true;
+  }
+}
+
+function clearFormDirty() {
+  formDirty = false;
+}
+
+window.addEventListener('beforeunload', (e) => {
+  if (formDirty) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
 async function renderInvoiceForm(editId = null) {
   const app = document.getElementById('app');
   showLoading();
+  clearFormDirty();
   
   try {
     const settings = await getAllSettings();
     const defaults = getDefaultSettings();
-    const mergedSettings = { ...defaults, ...settings };
+    formCachedSettings = { ...defaults, ...settings };
+    const mergedSettings = formCachedSettings;
     
     let invoice = null;
     if (editId) {
@@ -63,7 +85,7 @@ async function renderInvoiceForm(editId = null) {
             <div class="form-grid">
               <div class="form-group">
                 <label for="client-name">Client Name</label>
-                <input type="text" id="client-name" value="${invoice ? escapeHTML(invoice.clientName) : ''}" required>
+                <input type="text" id="client-name" value="${invoice ? escapeHTML(invoice.clientName) : ''}" required list="client-datalist">
               </div>
               <div class="form-group">
                 <label for="client-email">Client Email</label>
@@ -83,22 +105,22 @@ async function renderInvoiceForm(editId = null) {
                 <thead>
                   <tr>
                     <th style="width: 40%;">${escapeHTML(mergedSettings.labelDescription || 'Description')}</th>
-                    <th style="width: 15%;">${escapeHTML(mergedSettings.labelRate || 'Rate')} (${currencySymbol})</th>
+                    <th style="width: 15%;">${escapeHTML(mergedSettings.labelRate || 'Rate')}</th>
                     <th style="width: 15%;">${escapeHTML(mergedSettings.labelHours || 'Hours')}</th>
                     <th style="width: 20%;">${escapeHTML(mergedSettings.labelAmount || 'Amount')}</th>
                     <th style="width: 10%;"></th>
                   </tr>
                 </thead>
                 <tbody id="line-items-body">
-                  ${lineItems.map((item, i) => renderLineItemRow(item, i, mergedSettings)).join('')}
+                  ${lineItems.map((item, i) => renderLineItemRow(item, i, mergedSettings, currencySymbol, lineItems.length)).join('')}
                 </tbody>
               </table>
             </div>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="addLineItem()" style="margin-top: 1rem;">+ Add Item</button>
-            <button type="button" class="btn btn-secondary btn-sm" onclick="openCSVImport()" style="margin-top: 1rem; margin-left: 0.5rem;">Import CSV</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="addLineItem()">+ Add Item</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openCSVImport()" style="margin-left: 0.5rem;">Import CSV</button>
             <input type="file" id="csv-file-input" accept=".csv,.tsv,.txt" style="display:none;" onchange="handleCSVFileSelect(event)">
             
-            <div class="totals" id="totals">
+            <div class="totals sticky-totals" id="totals">
               ${renderTotalsHTML(lineItems, mergedSettings)}
             </div>
           </div>
@@ -189,6 +211,17 @@ async function renderInvoiceForm(editId = null) {
   
   attachFormListeners();
   renderNav();
+  
+  if (!editId) {
+    setTimeout(() => {
+      const clientInput = document.getElementById('client-name');
+      if (clientInput) clientInput.focus();
+    }, 50);
+  }
+  
+  setupClientAutocomplete();
+  setupFormKeyboardShortcuts();
+  
   } catch (err) {
     console.error('Error rendering invoice form:', err);
     app.innerHTML = `
@@ -204,15 +237,26 @@ async function renderInvoiceForm(editId = null) {
   }
 }
 
-function renderLineItemRow(item, index, settings) {
+function renderLineItemRow(item, index, settings, currencySymbol, totalItems) {
   const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
   return `
     <tr data-index="${index}">
       <td><input type="text" class="item-description" value="${escapeHTML(item.description)}" placeholder="Description of work" required></td>
-      <td><input type="number" class="item-rate" value="${escapeHTML(String(item.rate))}" placeholder="0.00" step="0.01" min="0" required></td>
+      <td>
+        <div style="position:relative;">
+          <span style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.8125rem;pointer-events:none;">${currencySymbol}</span>
+          <input type="number" class="item-rate" value="${escapeHTML(String(item.rate))}" placeholder="0.00" step="0.01" min="0" required style="padding-left:1.5rem;">
+        </div>
+      </td>
       <td><input type="number" class="item-hours" value="${escapeHTML(String(item.hours))}" placeholder="0" step="0.5" min="0" required></td>
       <td class="amount-cell">${formatCurrency(amount, settings.currency)}</td>
-      <td><button type="button" class="remove-btn" onclick="removeLineItem(this)" ${index === 0 ? 'disabled' : ''}>&times;</button></td>
+      <td>
+        <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
+          <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" ${index === 0 ? 'disabled' : ''}>&#8593;</button>
+          <button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" ${index === totalItems - 1 ? 'disabled' : ''}>&#8595;</button>
+          <button type="button" class="remove-btn" onclick="removeLineItem(this)" ${index === 0 ? 'disabled' : ''}>&times;</button>
+        </div>
+      </td>
     </tr>
   `;
 }
@@ -241,23 +285,63 @@ function addLineItem() {
   const tbody = document.getElementById('line-items-body');
   const index = tbody.children.length;
   const row = document.createElement('tr');
+  const settings = formCachedSettings || getDefaultSettings();
+  const currencySymbol = getCurrencySymbol(settings.currency);
   row.dataset.index = index;
   row.innerHTML = `
     <td><input type="text" class="item-description" placeholder="Description of work" required></td>
-    <td><input type="number" class="item-rate" placeholder="0.00" step="0.01" min="0" required></td>
+    <td>
+      <div style="position:relative;">
+        <span style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.8125rem;pointer-events:none;">${currencySymbol}</span>
+        <input type="number" class="item-rate" placeholder="0.00" step="0.01" min="0" required style="padding-left:1.5rem;">
+      </div>
+    </td>
     <td><input type="number" class="item-hours" placeholder="0" step="0.5" min="0" required></td>
-    <td class="amount-cell">${formatCurrency(0)}</td>
-    <td><button type="button" class="remove-btn" onclick="removeLineItem(this)">&times;</button></td>
+    <td class="amount-cell">${formatCurrency(0, settings.currency)}</td>
+    <td>
+      <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
+        <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" disabled>&#8593;</button>
+        <button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" disabled>&#8595;</button>
+        <button type="button" class="remove-btn" onclick="removeLineItem(this)">&times;</button>
+      </div>
+    </td>
   `;
   tbody.appendChild(row);
+  updateReorderButtonsState();
+  
+  const descInput = row.querySelector('.item-description');
+  if (descInput) descInput.focus();
 }
 
 function removeLineItem(btn) {
   const tbody = document.getElementById('line-items-body');
   if (tbody.children.length > 1) {
     btn.closest('tr').remove();
+    updateReorderButtonsState();
     updateTotals();
   }
+}
+
+function moveLineItem(btn, direction) {
+  const row = btn.closest('tr');
+  const tbody = document.getElementById('line-items-body');
+  if (direction === -1 && row.previousElementSibling) {
+    tbody.insertBefore(row, row.previousElementSibling);
+  } else if (direction === 1 && row.nextElementSibling) {
+    tbody.insertBefore(row.nextElementSibling, row);
+  }
+  updateReorderButtonsState();
+  updateTotals();
+}
+
+function updateReorderButtonsState() {
+  const rows = document.querySelectorAll('#line-items-body tr');
+  rows.forEach((row, i) => {
+    const up = row.querySelector('.reorder-up');
+    const down = row.querySelector('.reorder-down');
+    if (up) up.disabled = i === 0;
+    if (down) down.disabled = i === rows.length - 1;
+  });
 }
 
 let csvImportData = null;
@@ -424,21 +508,35 @@ function applyCSVImport() {
   const allItems = existingItems.length > 0 ? [...existingItems, ...newItems] : newItems;
 
   tbody.innerHTML = '';
+  const settings = formCachedSettings || getDefaultSettings();
+  const currencySymbol = getCurrencySymbol(settings.currency);
   allItems.forEach((item, i) => {
     const row = document.createElement('tr');
     row.dataset.index = i;
     const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
     row.innerHTML = `
       <td><input type="text" class="item-description" value="${escapeHTML(item.description)}" placeholder="Description of work" required></td>
-      <td><input type="number" class="item-rate" value="${escapeHTML(item.rate)}" placeholder="0.00" step="0.01" min="0" required></td>
+      <td>
+        <div style="position:relative;">
+          <span style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.8125rem;pointer-events:none;">${currencySymbol}</span>
+          <input type="number" class="item-rate" value="${escapeHTML(item.rate)}" placeholder="0.00" step="0.01" min="0" required style="padding-left:1.5rem;">
+        </div>
+      </td>
       <td><input type="number" class="item-hours" value="${escapeHTML(item.hours)}" placeholder="0" step="0.5" min="0" required></td>
-      <td class="amount-cell">${formatCurrency(amount)}</td>
-      <td><button type="button" class="remove-btn" onclick="removeLineItem(this)" ${i === 0 ? 'disabled' : ''}>&times;</button></td>
+      <td class="amount-cell">${formatCurrency(amount, settings.currency)}</td>
+      <td>
+        <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
+          <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" ${i === 0 ? 'disabled' : ''}>&#8593;</button>
+          <button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" ${i === allItems.length - 1 ? 'disabled' : ''}>&#8595;</button>
+          <button type="button" class="remove-btn" onclick="removeLineItem(this)" ${i === 0 ? 'disabled' : ''}>&times;</button>
+        </div>
+      </td>
     `;
     tbody.appendChild(row);
   });
 
   updateTotals();
+  updateReorderButtonsState();
   showToast(`Imported ${newItems.length} line item${newItems.length !== 1 ? 's' : ''}!`, 'success');
 }
 
@@ -450,8 +548,18 @@ function attachLineItemListeners() {
       const row = e.target.closest('tr');
       const rate = parseFloat(row.querySelector('.item-rate').value) || 0;
       const hours = parseFloat(row.querySelector('.item-hours').value) || 0;
-      row.querySelector('.amount-cell').textContent = formatCurrency(rate * hours);
+      row.querySelector('.amount-cell').textContent = formatCurrency(rate * hours, (formCachedSettings || {}).currency);
       updateTotals();
+    }
+  });
+  tbody.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      const row = e.target.closest('tr');
+      const isLastRow = row === tbody.lastElementChild;
+      if (isLastRow) {
+        e.preventDefault();
+        addLineItem();
+      }
     }
   });
 }
@@ -461,15 +569,22 @@ function attachFormListeners() {
   
   const form = document.getElementById('invoice-form');
   if (!form) return;
-  form.addEventListener('input', () => updatePreview());
-  form.addEventListener('change', () => updatePreview());
+  form.addEventListener('input', () => {
+    setFormDirty();
+    debouncedUpdatePreview();
+  });
+  form.addEventListener('change', () => {
+    setFormDirty();
+    debouncedUpdatePreview();
+  });
   
   document.querySelectorAll('#form-template-grid .template-option').forEach(el => {
     el.addEventListener('click', () => {
       document.querySelectorAll('#form-template-grid .template-option').forEach(t => t.classList.remove('selected'));
       el.classList.add('selected');
       document.getElementById('invoice-template').value = el.dataset.template;
-      updatePreview();
+      setFormDirty();
+      debouncedUpdatePreview();
     });
   });
   
@@ -479,7 +594,8 @@ function attachFormListeners() {
       document.querySelectorAll('#form-color-grid .color-option-custom').forEach(c => c.classList.remove('selected'));
       el.classList.add('selected');
       document.getElementById('invoice-accent-color').value = el.dataset.color;
-      updatePreview();
+      setFormDirty();
+      debouncedUpdatePreview();
     });
   });
   
@@ -489,62 +605,64 @@ function attachFormListeners() {
       document.querySelectorAll('#form-color-grid .color-option').forEach(c => c.classList.remove('selected'));
       document.querySelectorAll('#form-color-grid .color-option-custom').forEach(c => c.classList.add('selected'));
       document.getElementById('invoice-accent-color').value = e.target.value;
-      updatePreview();
+      setFormDirty();
+      debouncedUpdatePreview();
     });
   }
 }
 
+const debouncedUpdatePreview = debounce(updatePreview, 150);
+
 function updatePreview() {
-  getAllSettings().then(settings => {
-    const defaults = getDefaultSettings();
-    const merged = { ...defaults, ...settings };
-    
-    const templateEl = document.getElementById('invoice-template');
-    const accentEl = document.getElementById('invoice-accent-color');
-    if (templateEl) merged.template = templateEl.value;
-    if (accentEl) merged.accentColor = accentEl.value;
-    
-    const rows = document.querySelectorAll('#line-items-body tr');
-    const lineItems = [];
-    rows.forEach(row => {
-      lineItems.push({
-        description: row.querySelector('.item-description').value,
-        rate: row.querySelector('.item-rate').value,
-        hours: row.querySelector('.item-hours').value
-      });
+  if (!formCachedSettings) return;
+  const merged = { ...formCachedSettings };
+  
+  const templateEl = document.getElementById('invoice-template');
+  const accentEl = document.getElementById('invoice-accent-color');
+  if (templateEl) merged.template = templateEl.value;
+  if (accentEl) merged.accentColor = accentEl.value;
+  
+  const rows = document.querySelectorAll('#line-items-body tr');
+  const lineItems = [];
+  rows.forEach(row => {
+    lineItems.push({
+      description: row.querySelector('.item-description').value,
+      rate: row.querySelector('.item-rate').value,
+      hours: row.querySelector('.item-hours').value
     });
-    
-    const invoiceData = {
-      number: document.getElementById('invoice-number').value,
-      date: document.getElementById('invoice-date').value,
-      dueDate: document.getElementById('invoice-due-date').value,
-      clientName: document.getElementById('client-name').value,
-      clientEmail: document.getElementById('client-email').value,
-      clientAddress: document.getElementById('client-address').value,
-      lineItems,
-      notes: document.getElementById('invoice-notes').value
-    };
-    
-    const previewEl = document.getElementById('live-preview');
-    if (previewEl) previewEl.innerHTML = renderLivePreview(merged, invoiceData);
-    const labelEl = document.getElementById('preview-template-label');
-    if (labelEl) {
-      const tpl = TEMPLATES.find(t => t.id === merged.template);
-      labelEl.textContent = tpl ? tpl.name : merged.template;
-    }
-    const totalsEl = document.getElementById('totals');
-    if (totalsEl) totalsEl.innerHTML = renderTotalsHTML(lineItems, merged);
-    
-    const mobileEl = document.getElementById('mobile-preview-content');
-    if (mobileEl) mobileEl.innerHTML = renderLivePreview(merged, invoiceData);
   });
+  
+  const invoiceData = {
+    number: document.getElementById('invoice-number').value,
+    date: document.getElementById('invoice-date').value,
+    dueDate: document.getElementById('invoice-due-date').value,
+    clientName: document.getElementById('client-name').value,
+    clientEmail: document.getElementById('client-email').value,
+    clientAddress: document.getElementById('client-address').value,
+    lineItems,
+    notes: document.getElementById('invoice-notes').value
+  };
+  
+  const previewEl = document.getElementById('live-preview');
+  if (previewEl) previewEl.innerHTML = renderLivePreview(merged, invoiceData);
+  const labelEl = document.getElementById('preview-template-label');
+  if (labelEl) {
+    const tpl = TEMPLATES.find(t => t.id === merged.template);
+    labelEl.textContent = tpl ? tpl.name : merged.template;
+  }
+  const totalsEl = document.getElementById('totals');
+  if (totalsEl) totalsEl.innerHTML = renderTotalsHTML(lineItems, merged);
+  
+  const mobileEl = document.getElementById('mobile-preview-content');
+  if (mobileEl) mobileEl.innerHTML = renderLivePreview(merged, invoiceData);
 }
 
 function updateTotals() {
-  updatePreview();
+  debouncedUpdatePreview();
 }
 
 async function handleFormSubmit(isDraft) {
+  clearFormDirty();
   const editId = document.getElementById('edit-id').value;
   const number = document.getElementById('invoice-number').value;
   const date = document.getElementById('invoice-date').value;
@@ -670,6 +788,35 @@ function showConfirmModal(message, onConfirm) {
   });
 }
 
+async function setupClientAutocomplete() {
+  const clients = await getClientList();
+  if (!clients.length) return;
+  let datalist = document.getElementById('client-datalist');
+  if (!datalist) {
+    datalist = document.createElement('datalist');
+    datalist.id = 'client-datalist';
+    document.body.appendChild(datalist);
+  }
+  datalist.innerHTML = clients.map(c => `<option value="${escapeHTML(c)}">`).join('');
+}
+
+function setupFormKeyboardShortcuts() {
+  document.addEventListener('keydown', function formKeyHandler(e) {
+    if (!document.getElementById('invoice-form')) {
+      document.removeEventListener('keydown', formKeyHandler);
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      saveDraft();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      handleFormSubmit(false);
+    }
+  });
+}
+
 function renderLivePreview(settings, invoice) {
   const { subtotal, tps, tvq, total } = calculateTotals(invoice.lineItems, settings);
   const accent = settings.accentColor;
@@ -712,12 +859,13 @@ function renderLivePreview(settings, invoice) {
           ${settings.companyAddress ? `<div class="preview-info">${escapeHTML(settings.companyAddress)}</div>` : ''}
           ${settings.companyEmail ? `<div class="preview-info">${escapeHTML(settings.companyEmail)}</div>` : ''}
           ${settings.companyPhone ? `<div class="preview-info">${escapeHTML(settings.companyPhone)}</div>` : ''}
+          ${settings.companyWebsite ? `<div class="preview-info">${escapeHTML(settings.companyWebsite)}</div>` : ''}
         </div>
         <div class="preview-meta-right">
           <div class="preview-invoice-title">${escapeHTML(settings.labelInvoice || 'INVOICE')}</div>
           <div class="preview-info">${escapeHTML(settings.labelInvoiceNumber || 'Invoice #')} ${escapeHTML(invoice.number || '—')}</div>
-          <div class="preview-info">${escapeHTML(settings.labelDate || 'Date')}: ${escapeHTML(invoice.date || '—')}</div>
-          <div class="preview-info">${escapeHTML(settings.labelDueDate || 'Due')}: ${escapeHTML(invoice.dueDate || '—')}</div>
+          <div class="preview-info">${escapeHTML(settings.labelDate || 'Date')}: ${escapeHTML(invoice.date ? formatDate(invoice.date) : '—')}</div>
+          <div class="preview-info">${escapeHTML(settings.labelDueDate || 'Due')}: ${escapeHTML(invoice.dueDate ? formatDate(invoice.dueDate) : '—')}</div>
         </div>
       </div>
       

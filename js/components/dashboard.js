@@ -75,7 +75,7 @@ async function renderDashboard() {
                       <td><a href="#/edit/${escapeHTML(inv.id)}" style="color: var(--accent); text-decoration: none;">${escapeHTML(inv.number)}</a></td>
                       <td>${escapeHTML(inv.clientName)}</td>
                       <td>${getStatusBadge(inv.status)}</td>
-                      <td>${escapeHTML(inv.date)}</td>
+                      <td>${escapeHTML(formatDate(inv.date))}</td>
                       <td>${formatCurrency(total, mergedSettings.currency)}</td>
                     </tr>
                   `;
