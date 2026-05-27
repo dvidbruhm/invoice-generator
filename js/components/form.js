@@ -93,6 +93,8 @@ async function renderInvoiceForm(editId = null) {
               </table>
             </div>
             <button type="button" class="btn btn-secondary btn-sm" onclick="addLineItem()" style="margin-top: 1rem;">+ Add Item</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="openCSVImport()" style="margin-top: 1rem; margin-left: 0.5rem;">Import CSV</button>
+            <input type="file" id="csv-file-input" accept=".csv,.tsv,.txt" style="display:none;" onchange="handleCSVFileSelect(event)">
             
             <div class="totals" id="totals">
               ${renderTotalsHTML(lineItems, mergedSettings)}
@@ -225,6 +227,188 @@ function removeLineItem(btn) {
     btn.closest('tr').remove();
     updateTotals();
   }
+}
+
+let csvImportData = null;
+
+function openCSVImport() {
+  const input = document.getElementById('csv-file-input');
+  if (input) input.click();
+}
+
+function handleCSVFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    const { headers, rows } = parseCSV(text);
+    if (headers.length === 0 || rows.length === 0) {
+      showToast('No data found in CSV file.', 'error');
+      return;
+    }
+
+    const autoMapping = guessCSVMapping(headers);
+    csvImportData = { headers, rows, mapping: autoMapping };
+    showCSVImportModal();
+  };
+  reader.readAsText(file);
+}
+
+function showCSVImportModal() {
+  if (!csvImportData) return;
+  const { headers, rows, mapping } = csvImportData;
+
+  const previewRows = rows.slice(0, 5);
+
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.id = 'csv-import-overlay';
+  overlay.innerHTML = `
+    <div class="csv-import-modal">
+      <h3 style="font-size:1.125rem;font-weight:600;margin-bottom:0.5rem;">Import Line Items from CSV</h3>
+      <p style="color:var(--text-secondary);font-size:0.875rem;margin-bottom:1rem;">
+        Map your CSV columns to invoice fields. ${escapeHTML(rows.length)} row${rows.length !== 1 ? 's' : ''} found.
+      </p>
+
+      <div class="csv-mapping-grid">
+        ${headers.map((header, i) => {
+          const auto = mapping[header] || '_skip';
+          return `
+            <div class="csv-mapping-row">
+              <div class="csv-mapping-header">${escapeHTML(header)}</div>
+              <select class="csv-mapping-select" data-column="${escapeHTML(header)}">
+                ${CSV_FIELD_OPTIONS.map(opt =>
+                  `<option value="${opt.value}" ${auto === opt.value ? 'selected' : ''}>${escapeHTML(opt.label)}</option>`
+                ).join('')}
+              </select>
+            </div>
+          `;
+        }).join('')}
+      </div>
+
+      <div class="csv-preview-section">
+        <div style="font-size:0.75rem;font-weight:600;margin-bottom:0.5rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.05em;">Preview (first ${previewRows.length} row${previewRows.length !== 1 ? 's' : ''})</div>
+        <div class="csv-preview-table-wrapper">
+          <table class="csv-preview-table">
+            <thead>
+              <tr>
+                ${headers.map(h => `<th>${escapeHTML(h)}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${previewRows.map(row => `
+                <tr>${headers.map(h => `<td>${escapeHTML(row[h] || '')}</td>`).join('')}</tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div style="font-size:0.8125rem;color:var(--text-secondary);margin-top:0.75rem;">
+        Only mapped columns will be imported. Unmapped columns are skipped. Rows with empty description are excluded.
+      </div>
+
+      <div class="confirm-actions" style="margin-top:1.25rem;">
+        <button class="btn btn-secondary" id="csv-cancel-btn">Cancel</button>
+        <button class="btn btn-primary" id="csv-import-btn">Import ${rows.length} Item${rows.length !== 1 ? 's' : ''}</button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  overlay.querySelector('#csv-cancel-btn').addEventListener('click', () => {
+    csvImportData = null;
+    overlay.remove();
+  });
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) {
+      csvImportData = null;
+      overlay.remove();
+    }
+  });
+  overlay.querySelector('#csv-import-btn').addEventListener('click', () => {
+    applyCSVImport();
+    overlay.remove();
+  });
+}
+
+function applyCSVImport() {
+  if (!csvImportData) return;
+
+  const selects = document.querySelectorAll('.csv-mapping-select');
+  const mapping = {};
+  selects.forEach(sel => {
+    mapping[sel.dataset.column] = sel.value;
+  });
+
+  const { rows } = csvImportData;
+  csvImportData = null;
+
+  const newItems = [];
+  for (const row of rows) {
+    const item = { description: '', rate: '', hours: '' };
+    let hasData = false;
+
+    for (const [column, field] of Object.entries(mapping)) {
+      if (field === '_skip') continue;
+      const value = (row[column] || '').trim();
+      if (field === 'description' && value) hasData = true;
+      if (field === 'rate') {
+        const num = parseFloat(value.replace(/[,$]/g, ''));
+        item[field] = isNaN(num) ? value : String(num);
+        if (value) hasData = true;
+      } else if (field === 'hours') {
+        const num = parseFloat(value.replace(/[,$]/g, ''));
+        item[field] = isNaN(num) ? value : String(num);
+        if (value) hasData = true;
+      } else {
+        item[field] = value;
+        if (value) hasData = true;
+      }
+    }
+
+    if (hasData) newItems.push(item);
+  }
+
+  if (newItems.length === 0) {
+    showToast('No valid rows to import.', 'error');
+    return;
+  }
+
+  const tbody = document.getElementById('line-items-body');
+  const existingItems = [];
+  tbody.querySelectorAll('tr').forEach(row => {
+    const desc = row.querySelector('.item-description')?.value;
+    const rate = row.querySelector('.item-rate')?.value;
+    const hours = row.querySelector('.item-hours')?.value;
+    if (desc || rate || hours) {
+      existingItems.push({ description: desc || '', rate: rate || '', hours: hours || '' });
+    }
+  });
+
+  const allItems = existingItems.length > 0 ? [...existingItems, ...newItems] : newItems;
+
+  tbody.innerHTML = '';
+  allItems.forEach((item, i) => {
+    const row = document.createElement('tr');
+    row.dataset.index = i;
+    const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
+    row.innerHTML = `
+      <td><input type="text" class="item-description" value="${escapeHTML(item.description)}" placeholder="Description of work" required></td>
+      <td><input type="number" class="item-rate" value="${escapeHTML(item.rate)}" placeholder="0.00" step="0.01" min="0" required></td>
+      <td><input type="number" class="item-hours" value="${escapeHTML(item.hours)}" placeholder="0" step="0.5" min="0" required></td>
+      <td class="amount-cell">${formatCurrency(amount)}</td>
+      <td><button type="button" class="remove-btn" onclick="removeLineItem(this)" ${i === 0 ? 'disabled' : ''}>&times;</button></td>
+    `;
+    tbody.appendChild(row);
+  });
+
+  updateTotals();
+  showToast(`Imported ${newItems.length} line item${newItems.length !== 1 ? 's' : ''}!`, 'success');
 }
 
 function attachLineItemListeners() {
