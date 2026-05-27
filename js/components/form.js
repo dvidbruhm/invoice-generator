@@ -254,7 +254,7 @@ function renderLineItemRow(item, index, settings, currencySymbol, totalItems) {
         </div>
       </td>
       <td><input type="number" class="item-hours" value="${escapeHTML(String(item.hours))}" placeholder="0" step="0.5" min="0" required></td>
-      <td class="amount-cell">${formatCurrency(amount, mergedSettings.currency)}</td>
+      <td class="amount-cell">${formatCurrency(amount, settings.currency)}</td>
       <td>
         <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
           <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" ${index === 0 ? 'disabled' : ''}>&#8593;</button>
