@@ -39,7 +39,10 @@ async function renderInvoiceForm(editId = null) {
     const today = new Date().toISOString().split('T')[0];
     const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     
-    const lineItems = invoice ? invoice.lineItems : [{ description: '', rate: '', hours: '' }];
+    const lineItems = (invoice ? invoice.lineItems : [{ description: '', rate: '', hours: '' }]).map((item, i) => ({
+      ...item,
+      date: item.date || (i === 0 ? (invoice?.date || today) : '')
+    }));
     const status = invoice ? (invoice.status || 'draft') : 'draft';
     const currencySymbol = getCurrencySymbol(mergedSettings.currency);
     
@@ -104,9 +107,10 @@ async function renderInvoiceForm(editId = null) {
               <table class="line-items" id="line-items-table">
                 <thead>
                   <tr>
-                    <th style="width: 40%;">${escapeHTML(mergedSettings.labelDescription || 'Description')}</th>
-                    <th style="width: 15%;">${escapeHTML(mergedSettings.labelRate || 'Rate')}</th>
-                    <th style="width: 15%;">${escapeHTML(mergedSettings.labelHours || 'Hours')}</th>
+                    <th style="width: 12%;">Date</th>
+                    <th style="width: 30%;">${escapeHTML(mergedSettings.labelDescription || 'Description')}</th>
+                    <th style="width: 14%;">${escapeHTML(mergedSettings.labelRate || 'Rate')}</th>
+                    <th style="width: 14%;">${escapeHTML(mergedSettings.labelHours || 'Hours')}</th>
                     <th style="width: 20%;">${escapeHTML(mergedSettings.labelAmount || 'Amount')}</th>
                     <th style="width: 10%;"></th>
                   </tr>
@@ -241,6 +245,7 @@ function renderLineItemRow(item, index, settings, currencySymbol, totalItems) {
   const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
   return `
     <tr data-index="${index}">
+      <td><input type="date" class="item-date" value="${escapeHTML(item.date || '')}"></td>
       <td><textarea class="item-description" placeholder="Description of work" required rows="1">${escapeHTML(item.description)}</textarea></td>
       <td>
         <div style="position:relative;">
@@ -249,7 +254,7 @@ function renderLineItemRow(item, index, settings, currencySymbol, totalItems) {
         </div>
       </td>
       <td><input type="number" class="item-hours" value="${escapeHTML(String(item.hours))}" placeholder="0" step="0.5" min="0" required></td>
-      <td class="amount-cell">${formatCurrency(amount, settings.currency)}</td>
+      <td class="amount-cell">${formatCurrency(amount, mergedSettings.currency)}</td>
       <td>
         <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
           <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" ${index === 0 ? 'disabled' : ''}>&#8593;</button>
@@ -281,14 +286,28 @@ function renderTotalsHTML(lineItems, settings) {
   `;
 }
 
+function getNextWeekday(dateStr) {
+  if (!dateStr) return new Date().toISOString().split('T')[0];
+  const date = new Date(dateStr + 'T00:00:00');
+  do {
+    date.setDate(date.getDate() + 1);
+  } while (date.getDay() === 0 || date.getDay() === 6);
+  return date.toISOString().split('T')[0];
+}
+
 function addLineItem() {
   const tbody = document.getElementById('line-items-body');
   const index = tbody.children.length;
   const row = document.createElement('tr');
   const settings = formCachedSettings || getDefaultSettings();
   const currencySymbol = getCurrencySymbol(settings.currency);
+  const lastRow = tbody.lastElementChild;
+  const defaultDate = lastRow
+    ? getNextWeekday(lastRow.querySelector('.item-date')?.value)
+    : (document.getElementById('invoice-date')?.value || new Date().toISOString().split('T')[0]);
   row.dataset.index = index;
   row.innerHTML = `
+    <td><input type="date" class="item-date" value="${escapeHTML(defaultDate)}"></td>
     <td><textarea class="item-description" placeholder="Description of work" required rows="1"></textarea></td>
     <td>
       <div style="position:relative;">
@@ -514,7 +533,11 @@ function applyCSVImport() {
     const row = document.createElement('tr');
     row.dataset.index = i;
     const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
+    const defaultDate = i === 0
+      ? (document.getElementById('invoice-date')?.value || new Date().toISOString().split('T')[0])
+      : getNextWeekday(allItems[i - 1].date || '');
     row.innerHTML = `
+      <td><input type="date" class="item-date" value="${escapeHTML(item.date || defaultDate)}"></td>
       <td><textarea class="item-description" placeholder="Description of work" required rows="1">${escapeHTML(item.description)}</textarea></td>
       <td>
         <div style="position:relative;">
@@ -626,6 +649,7 @@ function updatePreview() {
   const lineItems = [];
   rows.forEach(row => {
     lineItems.push({
+      date: row.querySelector('.item-date')?.value || '',
       description: row.querySelector('.item-description').value,
       rate: row.querySelector('.item-rate').value,
       hours: row.querySelector('.item-hours').value
@@ -677,6 +701,7 @@ async function handleFormSubmit(isDraft) {
   const lineItems = [];
   rows.forEach(row => {
     lineItems.push({
+      date: row.querySelector('.item-date')?.value || '',
       description: row.querySelector('.item-description').value,
       rate: row.querySelector('.item-rate').value,
       hours: row.querySelector('.item-hours').value
@@ -827,8 +852,9 @@ function renderLivePreview(settings, invoice) {
       const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
       const bg = i % 2 === 0 ? '' : `style="background:#f8f8f8;"`;
       const descHtml = escapeHTML(item.description).replace(/\n/g, '<br>');
+      const dateLabel = item.date ? `<span style="font-size:0.75rem;color:var(--text-secondary);white-space:nowrap;">${escapeHTML(formatDate(item.date))}</span>` : '';
       return `<tr ${bg}>
-        <td>${descHtml || '—'}</td>
+        <td>${dateLabel}${dateLabel ? '<br>' : ''}${descHtml || '—'}</td>
         <td>${item.rate ? formatCurrency(parseFloat(item.rate), settings.currency) : '—'}</td>
         <td>${escapeHTML(item.hours) || '—'}</td>
         <td class="preview-amount">${amount > 0 ? formatCurrency(amount, settings.currency) : '—'}</td>

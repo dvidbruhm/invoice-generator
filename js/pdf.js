@@ -164,6 +164,7 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
   const isGrid = template === 'grid';
   const isClassic = template === 'classic';
   const isClean = template === 'clean';
+  const isSidebar = template === 'sidebar';
 
   function drawTableHeader(yPos) {
     if (isClassic) {
@@ -207,20 +208,38 @@ function renderLineItems(doc, invoice, settings, accent, margin, contentWidth, y
     if (isClassic) doc.setFont('times', 'normal');
     const descLines = doc.splitTextToSize(item.description || '', colX[1] - colX[0] - 4);
     const lineCount = descLines.length || 1;
-    const actualRowHeight = Math.max(rowHeight, lineCount * 4.5 + 3);
+    const lineHeightMm = doc.getFontSize() * 0.3528 * 1.15;
+    const descBlockHeight = lineCount * lineHeightMm;
+    const actualRowHeight = Math.max(rowHeight, descBlockHeight + 3);
 
     currentY = checkPageBreak(doc, currentY, actualRowHeight + 2);
     if (currentY <= 35 && i > 0) {
       currentY = drawTableHeader(currentY);
     }
 
+    const bgTop = currentY - 3;
     if (i % 2 === 0 && !isGrid && !isClassic) {
       doc.setFillColor(248, 248, 248);
-      doc.rect(margin, currentY - 3, contentWidth, actualRowHeight, 'F');
+      doc.rect(margin, bgTop, contentWidth, actualRowHeight, 'F');
     }
 
-    doc.text(descLines, colX[0] + 2, currentY + 1);
-    const otherBaseline = currentY + (actualRowHeight - doc.getFontSize() * 0.3528) / 2;
+    if (!isSidebar && item.date) {
+      const dateText = formatDate(item.date);
+      doc.setFontSize(7);
+      doc.setTextColor(150, 150, 150);
+      const textW = doc.getTextWidth(dateText);
+      const anchorY = bgTop + actualRowHeight / 2 + textW / 2;
+      doc.text(dateText, margin - 10, anchorY, { angle: 90 });
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(9);
+      if (isClassic) doc.setFont('times', 'normal');
+    }
+
+    const descTop = bgTop + (actualRowHeight - descBlockHeight) / 2 + lineHeightMm * 0.75;
+    doc.text(descLines, colX[0] + 2, descTop);
+
+    const fontHeight = doc.getFontSize() * 0.3528;
+    const otherBaseline = bgTop + actualRowHeight / 2 + fontHeight * 0.3;
     doc.text(formatCurrency(parseFloat(item.rate), settings.currency), colX[1], otherBaseline);
     doc.text(item.hours, colX[2], otherBaseline);
     doc.text(formatCurrency(amount, settings.currency), colX[3], otherBaseline, { align: 'right' });
