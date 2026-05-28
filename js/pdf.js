@@ -769,3 +769,67 @@ async function generatePDF(invoice, settings) {
   const filename = `${invoice.number}.pdf`;
   doc.save(filename);
 }
+
+async function generatePDFFromHTML(elementId, filename) {
+  if (!window.html2canvas) {
+    throw new Error('html2canvas library not loaded. Please check your internet connection and reload the page.');
+  }
+  if (!window.jspdf) {
+    throw new Error('jsPDF library not loaded. Please check your internet connection and reload the page.');
+  }
+
+  const element = document.getElementById(elementId);
+  if (!element) {
+    throw new Error('Preview element not found.');
+  }
+
+  const clone = element.cloneNode(true);
+  clone.id = 'visual-pdf-clone';
+  clone.style.width = '794px';
+  clone.style.padding = '40px';
+  clone.style.background = 'white';
+  clone.style.color = '#111';
+  clone.style.position = 'absolute';
+  clone.style.left = '-9999px';
+  clone.style.top = '0';
+  document.body.appendChild(clone);
+
+  try {
+    const canvas = await html2canvas(clone, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false
+    });
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'letter'
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    let heightLeft = imgHeight;
+    let position = 0;
+
+    doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+    heightLeft -= pageHeight;
+
+    while (heightLeft > 0) {
+      position -= pageHeight;
+      doc.addPage();
+      doc.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+    }
+
+    doc.save(`${filename}.pdf`);
+  } finally {
+    const cloneEl = document.getElementById('visual-pdf-clone');
+    if (cloneEl) cloneEl.remove();
+  }
+}

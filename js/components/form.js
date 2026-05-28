@@ -168,6 +168,7 @@ async function renderInvoiceForm(editId = null) {
           <div class="btn-group">
             <button type="submit" class="btn btn-primary">${editId ? 'Update & Generate PDF' : 'Save & Generate PDF'}</button>
             <button type="button" class="btn btn-secondary" onclick="saveDraft()">Save Draft</button>
+            <button type="button" class="btn btn-secondary" onclick="saveAndDownloadVisualPDF()" title="PDF that looks exactly like the preview">Visual PDF</button>
             <a href="#/history" class="btn btn-secondary">Cancel</a>
           </div>
         </form>
@@ -796,6 +797,31 @@ async function handleFormSubmit(isDraft) {
 
 function saveDraft() {
   handleFormSubmit(true);
+}
+
+async function saveAndDownloadVisualPDF() {
+  const previewEl = document.getElementById('live-preview');
+  if (!previewEl) {
+    showToast('Preview not found.', 'error');
+    return;
+  }
+  const invoiceWrapper = previewEl.querySelector('.preview-invoice');
+  if (!invoiceWrapper) {
+    showToast('Preview not rendered yet.', 'error');
+    return;
+  }
+  const invoiceNumber = document.getElementById('invoice-number')?.value || 'invoice';
+  const prevId = invoiceWrapper.id;
+  invoiceWrapper.id = 'visual-pdf-capture';
+  try {
+    await generatePDFFromHTML('visual-pdf-capture', invoiceNumber);
+    showToast('Visual PDF downloaded!', 'success');
+  } catch (err) {
+    showToast('Error generating visual PDF.', 'error');
+    console.error(err);
+  } finally {
+    invoiceWrapper.id = prevId || '';
+  }
 }
 
 function showToast(message, type = 'success') {

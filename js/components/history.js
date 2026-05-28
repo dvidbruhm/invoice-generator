@@ -97,6 +97,7 @@ function renderHistoryTable(invoices, settings) {
                     <div class="history-actions">
                       <a href="#/edit/${escapeHTML(inv.id)}" class="btn btn-sm btn-secondary">Edit</a>
                       <button class="btn btn-sm btn-secondary" onclick="downloadPDF('${escapeHTML(inv.id)}')">PDF</button>
+                      <button class="btn btn-sm btn-secondary" onclick="downloadVisualPDF('${escapeHTML(inv.id)}')">Visual PDF</button>
                       <button class="btn btn-sm btn-secondary" onclick="duplicateInvoice('${escapeHTML(inv.id)}')">Duplicate</button>
                       ${inv.status !== 'paid' ? `<button class="btn btn-sm btn-secondary" onclick="updateInvoiceStatus('${escapeHTML(inv.id)}', 'paid')">Mark Paid</button>` : ''}
                       <button class="btn btn-sm btn-danger" onclick="deleteInvoiceConfirm('${escapeHTML(inv.id)}')">Delete</button>
@@ -188,6 +189,48 @@ async function downloadPDF(id) {
     showToast('PDF downloaded!', 'success');
   } catch (err) {
     showToast('Error generating PDF.', 'error');
+    console.error(err);
+  }
+}
+
+async function downloadVisualPDF(id) {
+  try {
+    const invoice = await getInvoice(id);
+    const settings = await getAllSettings();
+    const defaults = getDefaultSettings();
+    const mergedSettings = { ...defaults, ...settings };
+    if (invoice.template) mergedSettings.template = invoice.template;
+    if (invoice.accentColor) mergedSettings.accentColor = invoice.accentColor;
+
+    const previewHTML = renderLivePreview(mergedSettings, invoice);
+    const tempDiv = document.createElement('div');
+    tempDiv.id = 'visual-pdf-temp';
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.top = '0';
+    tempDiv.style.width = '794px';
+    tempDiv.style.background = 'white';
+    tempDiv.innerHTML = previewHTML;
+    document.body.appendChild(tempDiv);
+
+    const invoiceWrapper = tempDiv.querySelector('.preview-invoice');
+    if (!invoiceWrapper) {
+      tempDiv.remove();
+      showToast('Error rendering preview.', 'error');
+      return;
+    }
+
+    invoiceWrapper.id = 'visual-pdf-capture';
+    invoiceWrapper.style.padding = '40px';
+    invoiceWrapper.style.color = '#111';
+    
+    await generatePDFFromHTML('visual-pdf-capture', invoice.number || 'invoice');
+    tempDiv.remove();
+    showToast('Visual PDF downloaded!', 'success');
+  } catch (err) {
+    const tempDiv = document.getElementById('visual-pdf-temp');
+    if (tempDiv) tempDiv.remove();
+    showToast('Error generating visual PDF.', 'error');
     console.error(err);
   }
 }
