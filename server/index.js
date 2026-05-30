@@ -6,6 +6,8 @@ const { initDB } = require('./db');
 const authRoutes = require('./routes/auth');
 const invoiceRoutes = require('./routes/invoices');
 const settingsRoutes = require('./routes/settings');
+const clientRoutes = require('./routes/clients');
+const pdfRoutes = require('./routes/pdf');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -15,6 +17,8 @@ app.use(express.json({ limit: '10mb' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/clients', clientRoutes);
+app.use('/api/pdf', pdfRoutes);
 
 app.use(express.static(path.join(__dirname, '..')));
 
