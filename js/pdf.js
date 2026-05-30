@@ -1187,7 +1187,7 @@ async function generatePDFViaServer(elementId, filename) {
     .join('\n');
   clone.insertBefore(style, clone.firstChild);
 
-  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page{margin:0}body{margin:0;padding:0;background:white;min-height:100vh}</style></head><body>' + clone.outerHTML + '</body></html>';
+  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;height:100%;background:white}@page{margin:0;size:letter}</style></head><body>' + clone.outerHTML + '</body></html>';
 
   var resp = await fetch('/api/pdf/generate-pdf', {
     method: 'POST',
