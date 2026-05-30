@@ -1194,7 +1194,10 @@ async function generatePDFViaServer(elementId, filename) {
     body: JSON.stringify({ html: html })
   });
 
-  if (!resp.ok) throw new Error('Server PDF failed');
+  if (!resp.ok || resp.headers.get('content-type')?.indexOf('application/pdf') === -1) {
+    var errBody = await resp.text();
+    throw new Error('Server PDF failed (HTTP ' + resp.status + '): ' + errBody.substring(0, 200));
+  }
 
   var blob = await resp.blob();
   var url = URL.createObjectURL(blob);

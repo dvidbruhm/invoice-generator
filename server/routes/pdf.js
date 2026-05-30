@@ -20,6 +20,10 @@ function getBrowser() {
   return browserPromise;
 }
 
+router.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: Date.now() });
+});
+
 router.post('/generate-pdf', async (req, res) => {
   const { html } = req.body;
   if (!html) {
@@ -46,7 +50,7 @@ router.post('/generate-pdf', async (req, res) => {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'attachment; filename=invoice.pdf');
-    res.send(pdfBuffer);
+    res.end(pdfBuffer, 'binary');
   } catch (err) {
     if (page) await page.close();
     console.error('PDF generation error:', err);
