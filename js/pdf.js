@@ -1145,7 +1145,7 @@ function sharpenCanvas(canvas, amount) {
   var dst = output.data;
 
   var a = -amount;
-  var k = a * 4 + 1;
+  var k = 1 - a * 4;
 
   for (var y = 1; y < h - 1; y++) {
     for (var x = 1; x < w - 1; x++) {
@@ -1172,7 +1172,8 @@ async function generatePDFViaServer(elementId, filename) {
 
   var clone = element.cloneNode(true);
   clone.id = 'visual-pdf-clone';
-  clone.style.width = '794px';
+  clone.style.width = '100%';
+  clone.style.boxSizing = 'border-box';
   clone.style.padding = '40px';
   clone.style.background = 'white';
   clone.style.color = '#111';
@@ -1186,7 +1187,7 @@ async function generatePDFViaServer(elementId, filename) {
     .join('\n');
   clone.insertBefore(style, clone.firstChild);
 
-  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;">' + clone.outerHTML + '</body></html>';
+  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>@page{margin:0}body{margin:0;padding:0;background:white;min-height:100vh}</style></head><body>' + clone.outerHTML + '</body></html>';
 
   var resp = await fetch('/api/pdf/generate-pdf', {
     method: 'POST',
