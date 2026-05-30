@@ -85,10 +85,22 @@ async function renderInvoiceForm(editId = null) {
           
           <div class="card">
             <div class="card-title">Client Information</div>
+            <div class="client-selector-wrapper">
+              <div class="form-group">
+                <label for="client-select">Select Client</label>
+                <select id="client-select">
+                  <option value="">-- Select a client --</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>&nbsp;</label>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="window.location.hash='#/settings';document.getElementById('clients-card').open=true;" title="Manage clients in settings">Manage Clients</button>
+              </div>
+            </div>
             <div class="form-grid">
               <div class="form-group">
                 <label for="client-name">Client Name</label>
-                <input type="text" id="client-name" value="${invoice ? escapeHTML(invoice.clientName) : ''}" required list="client-datalist">
+                <input type="text" id="client-name" value="${invoice ? escapeHTML(invoice.clientName) : ''}" required>
               </div>
               <div class="form-group">
                 <label for="client-email">Client Email</label>
@@ -224,6 +236,7 @@ async function renderInvoiceForm(editId = null) {
   }
   
   setupClientAutocomplete();
+  await setupClientDropdown(editId, invoice);
   setupFormKeyboardShortcuts();
   
   } catch (err) {
@@ -882,15 +895,71 @@ function showConfirmModal(message, onConfirm) {
 }
 
 async function setupClientAutocomplete() {
-  const clients = await getClientList();
-  if (!clients.length) return;
-  let datalist = document.getElementById('client-datalist');
-  if (!datalist) {
-    datalist = document.createElement('datalist');
-    datalist.id = 'client-datalist';
-    document.body.appendChild(datalist);
+  // Deprecated — setupClientDropdown is called directly with params
+}
+
+function fillClientFields(client) {
+  document.getElementById('client-name').value = client.name || '';
+  document.getElementById('client-email').value = client.email || '';
+  document.getElementById('client-address').value = client.address || '';
+  updatePreview();
+}
+
+async function setupClientDropdown(editId, invoice) {
+  const clientSelect = document.getElementById('client-select');
+  if (!clientSelect) return;
+
+  try {
+    const clients = await getAllClients();
+
+    // Clear existing options except the default one
+    clientSelect.innerHTML = '<option value="">-- Select a client --</option>';
+
+    // Add client options
+    clients.forEach(client => {
+      const option = document.createElement('option');
+      option.value = client.id;
+      option.textContent = escapeHTML(client.name);
+      clientSelect.appendChild(option);
+    });
+
+    // Determine which client to auto-select
+    let selectedClient = null;
+
+    if (editId) {
+      // Editing: match by saved invoice client name
+      selectedClient = clients.find(c => c.name === invoice?.clientName) || null;
+    } else {
+      // New invoice: use default client from settings
+      const defaultId = formCachedSettings?.defaultClient;
+      if (defaultId) {
+        selectedClient = clients.find(c => String(c.id) === String(defaultId)) || null;
+      }
+    }
+
+    if (selectedClient) {
+      clientSelect.value = selectedClient.id;
+      fillClientFields(selectedClient);
+    }
+
+    // Add event listener for client selection — uses cached list, no extra API call
+    clientSelect.addEventListener('change', (e) => {
+      const clientId = e.target.value;
+      if (!clientId) {
+        document.getElementById('client-name').value = '';
+        document.getElementById('client-email').value = '';
+        document.getElementById('client-address').value = '';
+        updatePreview();
+        return;
+      }
+      const client = clients.find(c => String(c.id) === String(clientId));
+      if (client) {
+        fillClientFields(client);
+      }
+    });
+  } catch (err) {
+    console.error('Error loading clients:', err);
   }
-  datalist.innerHTML = clients.map(c => `<option value="${escapeHTML(c)}">`).join('');
 }
 
 function setupFormKeyboardShortcuts() {
@@ -914,8 +983,13 @@ function renderLivePreview(settings, invoice) {
   const { subtotal, tps, tvq, total } = calculateTotals(invoice.lineItems, settings);
   const accent = settings.accentColor;
   const companyName = settings.companyName || 'Your Company';
-  
-  const lineItemsHTML = invoice.lineItems.length > 0 && invoice.lineItems.some(i => i.description) ? 
+
+  // --- Progiciels template: custom layout ---
+  if (settings.template === 'progiciels') {
+    return renderProgicielsPreview(settings, invoice, accent, companyName, subtotal, tps, tvq, total);
+  }
+
+  const lineItemsHTML = invoice.lineItems.length > 0 && invoice.lineItems.some(i => i.description) ?
     invoice.lineItems.map((item, i) => {
       const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
       const bg = i % 2 === 0 ? '' : `style="background:#f8f8f8;"`;
@@ -927,9 +1001,9 @@ function renderLivePreview(settings, invoice) {
         <td>${escapeHTML(item.hours) || '—'}</td>
         <td class="preview-amount">${amount > 0 ? formatCurrency(amount, settings.currency) : '—'}</td>
       </tr>`;
-    }).join('') : 
+    }).join('') :
     `<tr style="color:#aaa;"><td colspan="4" style="text-align:center;padding:1rem;">Add line items to see preview</td></tr>`;
-  
+
   const totalsHTML = `
     <div class="preview-totals">
       <div class="preview-total-row"><span>${escapeHTML(settings.labelSubtotal || 'Subtotal')}</span><span>${formatCurrency(subtotal, settings.currency)}</span></div>
@@ -940,14 +1014,14 @@ function renderLivePreview(settings, invoice) {
       </div>
     </div>
   `;
-  
+
   const headerStyle = getTemplatePreviewStyle(settings.template, accent, companyName, invoice, settings);
   const tplClass = `preview-template-${settings.template || 'modern'}`;
-  
+
   return `
     <div class="preview-invoice ${tplClass}" style="--accent:${accent}; --accent-light:${accent}10; --accent-med:${accent}20;">
       ${headerStyle}
-      
+
       <div class="preview-meta">
         <div class="preview-meta-left">
           ${settings.logo ? `<img src="${settings.logo}" class="preview-logo">` : ''}
@@ -964,14 +1038,14 @@ function renderLivePreview(settings, invoice) {
           <div class="preview-info">${escapeHTML(settings.labelDueDate || 'Due')}: ${escapeHTML(invoice.dueDate ? formatDate(invoice.dueDate) : '—')}</div>
         </div>
       </div>
-      
+
       <div class="preview-client">
         <div class="preview-client-label" style="color:${accent};">${escapeHTML(settings.labelBillTo || 'Bill To:')}</div>
         <div class="preview-client-name">${escapeHTML(invoice.clientName) || '—'}</div>
         ${invoice.clientAddress ? `<div class="preview-info">${escapeHTML(invoice.clientAddress)}</div>` : ''}
         ${invoice.clientEmail ? `<div class="preview-info">${escapeHTML(invoice.clientEmail)}</div>` : ''}
       </div>
-      
+
       <table class="preview-table">
         <thead>
           <tr style="background:${accent};">
@@ -985,15 +1059,133 @@ function renderLivePreview(settings, invoice) {
           ${lineItemsHTML}
         </tbody>
       </table>
-      
+
       ${totalsHTML}
-      
+
       ${invoice.notes ? `
         <div class="preview-notes">
           <div class="preview-notes-label" style="color:${accent};">${escapeHTML(settings.labelNotes || 'Notes')}</div>
           <div class="preview-info">${escapeHTML(invoice.notes)}</div>
         </div>
       ` : ''}
+    </div>
+  `;
+}
+
+function renderProgicielsPreview(settings, invoice, accent, companyName, subtotal, tps, tvq, total) {
+  const titleSpaced = (settings.labelInvoice || 'FACTURE').split('').join(' ');
+  const labelInvoice = settings.labelInvoice || 'FACTURE';
+  const labelInvoiceNum = settings.labelInvoiceNumber || 'Facture #';
+  const labelDate = settings.labelDate || 'Date';
+  const labelDueDate = settings.labelDueDate || 'Échéance';
+  const labelTotal = settings.labelTotal || 'TOTAL';
+  const labelSubtotal = settings.labelSubtotal || 'SOUS-TOTAL';
+  const labelBillTo = settings.labelBillTo || 'FACTURÉ À:';
+  const labelDesc = settings.labelDescription || 'Description';
+  const labelHours = settings.labelHours || "Nombre d'heures";
+  const labelRate = settings.labelRate || 'Taux';
+  const labelAmount = settings.labelAmount || 'Montant';
+  const labelNotes = settings.labelNotes || 'NOTES';
+
+  // Line items (columns: Description | Hours | Rate | Amount)
+  const lineItemsHTML = invoice.lineItems.length > 0 && invoice.lineItems.some(i => i.description) ?
+    invoice.lineItems.map((item, i) => {
+      const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
+      const bg = i % 2 === 0 ? '' : `style="background:#f8f8f8;"`;
+      const descHtml = escapeHTML(item.description).replace(/\n/g, '<br>');
+      const dateLabel = item.date ? `<span style="font-size:0.75rem;color:var(--text-secondary);white-space:nowrap;">${escapeHTML(formatLineItemDate(item.date, settings.dateFormat || 'default'))}</span>` : '';
+      return `<tr ${bg}>
+        <td>${dateLabel}${dateLabel ? '<br>' : ''}${descHtml || '—'}</td>
+        <td style="text-align:center;">${escapeHTML(item.hours) || '—'}</td>
+        <td style="text-align:center;">${item.rate ? formatCurrency(parseFloat(item.rate), settings.currency) : '—'}</td>
+        <td class="preview-amount">${amount > 0 ? formatCurrency(amount, settings.currency) : '—'}</td>
+      </tr>`;
+    }).join('') :
+    `<tr style="color:#aaa;"><td colspan="4" style="text-align:center;padding:1rem;">Add line items to see preview</td></tr>`;
+
+  // Notes with ">" prefix
+  const notesHTML = invoice.notes ? `
+    <div class="preview-notes">
+      <div class="preview-notes-label" style="color:#111;">${escapeHTML(labelNotes)}</div>
+      ${invoice.notes.split('\n').map(line => `<div class="preview-info"><span style="color:#999;">&gt;</span> ${escapeHTML(line)}</div>`).join('')}
+    </div>
+  ` : '';
+
+  return `
+    <div class="preview-invoice preview-template-progiciels" style="--accent:${accent}; --accent-light:${accent}10; --accent-med:${accent}20;">
+      <!-- Left sidebar -->
+      <div class="preview-progiciels-sidebar" style="background:${accent};"></div>
+
+      <!-- Centered title -->
+      <div class="preview-progiciels-title" style="color:#000;">${escapeHTML(titleSpaced)}</div>
+      <div class="preview-progiciels-title-line" style="background:#888;"></div>
+
+      <!-- Two-column header: company left, client box right -->
+      <div class="preview-meta" style="align-items:flex-start;">
+        <div class="preview-meta-left" style="color:#1c252c;">
+          ${settings.logo ? `<img src="${settings.logo}" class="preview-logo">` : ''}
+          <div class="preview-company" style="color:#1c252c;font-size:1.1rem;">${escapeHTML(companyName)}</div>
+          ${settings.companyPhone ? `<div class="preview-info">${escapeHTML(settings.companyPhone)}</div>` : ''}
+          ${settings.companyEmail ? `<div class="preview-info">${escapeHTML(settings.companyEmail)}</div>` : ''}
+          ${settings.companyWebsite ? `<div class="preview-info">${escapeHTML(settings.companyWebsite)}</div>` : ''}
+          ${settings.companyAddress ? `<div class="preview-info">${escapeHTML(settings.companyAddress)}</div>` : ''}
+        </div>
+        <div class="preview-progiciels-client-box" style="background:${hexToRgba(accent, 0.12)};border-radius:4px;padding:0.6rem 0.8rem;">
+          <div class="preview-client-label" style="color:${accent};font-size:0.7rem;font-weight:700;">${escapeHTML(labelBillTo)}</div>
+          <div class="preview-client-name" style="font-size:0.95rem;">${escapeHTML(invoice.clientName) || '—'}</div>
+          ${invoice.clientEmail ? `<div class="preview-info" style="font-size:0.7rem;">${escapeHTML(invoice.clientEmail)}</div>` : ''}
+          ${invoice.clientAddress ? `<div class="preview-info" style="font-size:0.7rem;">${escapeHTML(invoice.clientAddress)}</div>` : ''}
+        </div>
+      </div>
+
+      <!-- Details bar -->
+      <div class="preview-progiciels-details-bar">
+        <div class="preview-progiciels-details-left">
+          <div class="preview-progiciels-detail-item">
+            <span class="preview-progiciels-detail-label">${escapeHTML(labelInvoiceNum)}:</span>
+            <span class="preview-progiciels-detail-value">${escapeHTML(invoice.number || '—')}</span>
+          </div>
+          <div class="preview-progiciels-detail-item">
+            <span class="preview-progiciels-detail-label">${escapeHTML(labelDate)}:</span>
+            <span class="preview-progiciels-detail-value">${escapeHTML(invoice.date ? formatDate(invoice.date) : '—')}</span>
+          </div>
+          <div class="preview-progiciels-detail-item">
+            <span class="preview-progiciels-detail-label">${escapeHTML(labelDueDate)}:</span>
+            <span class="preview-progiciels-detail-value">${escapeHTML(invoice.dueDate ? formatDate(invoice.dueDate) : '—')}</span>
+          </div>
+        </div>
+        <div class="preview-progiciels-amount-box" style="background:${hexToRgba(accent, 0.12)};border-radius:4px;">
+          <span class="preview-progiciels-detail-label">${escapeHTML(labelTotal)}:</span>
+          <span class="preview-progiciels-detail-value" style="color:${accent};font-weight:700;">${formatCurrency(total, settings.currency)}</span>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <table class="preview-table">
+        <thead>
+          <tr style="background:none;">
+            <th style="width:${settings.colDescription || 50}%;color:#111;">${escapeHTML(labelDesc)}</th>
+            <th style="width:${settings.colHours || 15}%;color:#111;text-align:center;">${escapeHTML(labelHours)}</th>
+            <th style="width:${settings.colRate || 15}%;color:#111;text-align:center;">${escapeHTML(labelRate)}</th>
+            <th style="width:${settings.colAmount || 20}%;color:#111;text-align:right;">${escapeHTML(labelAmount)}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${lineItemsHTML}
+        </tbody>
+      </table>
+
+      <!-- Totals -->
+      <div class="preview-totals">
+        <div class="preview-total-row"><span style="font-weight:700;">${escapeHTML(labelSubtotal)}</span><span>${formatCurrency(subtotal, settings.currency)}</span></div>
+        ${settings.taxTPS ? `<div class="preview-total-row"><span>${escapeHTML(settings.labelTPS || 'TPS')} (${(settings.tpsRate * 100).toFixed(1)}%)</span><span>${formatCurrency(tps, settings.currency)}</span></div>` : ''}
+        ${settings.taxTVQ ? `<div class="preview-total-row"><span>${escapeHTML(settings.labelTVQ || 'TVQ')} (${(settings.tvqRate * 100).toFixed(2)}%)</span><span>${formatCurrency(tvq, settings.currency)}</span></div>` : ''}
+        <div class="preview-total-row preview-total-final">
+          <span style="font-weight:700;">${escapeHTML(labelTotal)}</span><span style="color:${accent};font-weight:700;">${formatCurrency(total, settings.currency)}</span>
+        </div>
+      </div>
+
+      ${notesHTML}
     </div>
   `;
 }
@@ -1087,6 +1279,11 @@ function getTemplatePreviewStyle(template, accent, companyName, invoice, setting
     case 'swiss':
       return `<div class="preview-swiss-square" style="background:${a};"></div>
       <div class="preview-swiss-line" style="background:${a};"></div>`;
+
+    case 'progiciels':
+      return `<div class="preview-progiciels-sidebar" style="background:${a};"></div>
+<div class="preview-progiciels-title" style="color:#000;">${escapeHTML(labelInvoice.split('').join(' '))}</div>
+<div class="preview-progiciels-title-line" style="background:#888;"></div>`;
 
     default:
       return `<div class="preview-accent-bar preview-rounded-bottom" style="background:${a};"></div>`;

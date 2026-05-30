@@ -14,6 +14,23 @@ async function renderSettings() {
     </div>
     
     <form id="settings-form">
+      <details class="card collapsible" id="clients-card" open>
+        <summary class="card-title collapsible-toggle">Client Management</summary>
+        <div class="collapsible-content">
+          <div class="form-group" style="margin-bottom:1rem;">
+            <label for="default-client-select">Default Client</label>
+            <select id="default-client-select">
+              <option value="">None</option>
+            </select>
+            <small style="color:var(--text-secondary);display:block;margin-top:0.25rem;">Automatically selected for new invoices.</small>
+          </div>
+          <div id="clients-list">
+            <div style="text-align:center;color:var(--text-secondary);padding:1rem;">Loading clients...</div>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openClientModal()" style="margin-top:1rem;">+ Add Client</button>
+        </div>
+      </details>
+
       <details class="card collapsible" open>
         <summary class="card-title collapsible-toggle">Your Information</summary>
         <div class="collapsible-content">
@@ -305,7 +322,9 @@ async function renderSettings() {
   });
   
   document.getElementById('logo-upload').addEventListener('change', handleLogoUpload);
-  
+
+  loadClients(merged);
+
   renderNav();
   } catch (err) {
     console.error('Error rendering settings:', err);
@@ -363,7 +382,8 @@ async function saveSettingsForm() {
       colDescription: parseInt(document.getElementById('col-description').value, 10) || 35,
       colRate: parseInt(document.getElementById('col-rate').value, 10) || 15,
       colHours: parseInt(document.getElementById('col-hours').value, 10) || 15,
-      colAmount: parseInt(document.getElementById('col-amount').value, 10) || 20
+      colAmount: parseInt(document.getElementById('col-amount').value, 10) || 20,
+      defaultClient: document.getElementById('default-client-select')?.value || null
     };
 
     await saveSettingsBulk(settings);
@@ -590,8 +610,201 @@ function getTemplatePreviewHTML(templateId, accent) {
       <div class="tp-swiss-line" style="background:${a};"></div>
       <div class="tp-body">${row}${rowAlt}${row}</div>
       ${total}
+    `,
+    progiciels: `
+      <div style="position:relative;padding-left:4px;">
+        <div style="position:absolute;left:0;top:0;bottom:0;width:2px;background:${a};border-radius:1px;"></div>
+        <div style="text-align:center;font-weight:700;font-size:0.5rem;letter-spacing:0.12em;color:#000;margin-bottom:0.2rem;">F A C T U R E</div>
+        <div style="height:1px;background:#bbb;margin-bottom:0.3rem;"></div>
+        <div style="display:flex;justify-content:space-between;gap:0.25rem;margin-bottom:0.25rem;">
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:0.5rem;color:#1c252c;">Your Company</div>
+            <div style="font-size:0.3rem;color:#1c252c;">info@company.com</div>
+          </div>
+          <div style="background:${hexToRgba(a, 0.12)};border-radius:2px;padding:0.125rem 0.25rem;min-width:42%;">
+            <div style="font-size:0.3rem;color:${a};font-weight:600;">FACTURÉ À:</div>
+            <div style="font-size:0.4rem;font-weight:600;">Client Name</div>
+            <div style="font-size:0.3rem;color:#666;">client@email.com</div>
+          </div>
+        </div>
+        <div style="display:flex;border-top:1px solid #ccc;border-bottom:1px solid #ccc;margin-bottom:0.25rem;">
+          <div style="flex:1;display:flex;gap:0.4rem;padding:0.15rem 0.2rem;font-size:0.3rem;">
+            <div><span style="color:#666;">Facture #:</span><br><span style="font-weight:700;">INV-001</span></div>
+            <div><span style="color:#666;">Date:</span><br><span style="font-weight:700;">13/01/26</span></div>
+            <div><span style="color:#666;">Échéance:</span><br><span style="font-weight:700;">31/03/26</span></div>
+          </div>
+          <div style="background:${hexToRgba(a, 0.12)};border-radius:2px;padding:0.15rem 0.25rem;display:flex;flex-direction:column;justify-content:center;font-size:0.3rem;">
+            <span style="color:#666;">Montant:</span>
+            <span style="font-weight:700;color:${a};">$1,000</span>
+          </div>
+        </div>
+        <div class="tp-body" style="font-size:0.85em;">${row}${rowAlt}${row}</div>
+        ${total}
+      </div>
     `
   };
   
   return previews[templateId] || previews.modern;
+}
+
+async function loadClients(settings) {
+  const listEl = document.getElementById('clients-list');
+  if (!listEl) return;
+
+  try {
+    const clients = await getAllClients();
+
+    // Populate the default client dropdown
+    const defaultSelect = document.getElementById('default-client-select');
+    if (defaultSelect) {
+      defaultSelect.innerHTML = '<option value="">None</option>';
+      clients.forEach(client => {
+        const option = document.createElement('option');
+        option.value = client.id;
+        option.textContent = escapeHTML(client.name);
+        defaultSelect.appendChild(option);
+      });
+      if (settings?.defaultClient) {
+        defaultSelect.value = settings.defaultClient;
+      }
+    }
+
+    if (clients.length === 0) {
+      listEl.innerHTML = `
+        <div style="text-align:center;color:var(--text-secondary);padding:1rem;">
+          No clients yet. Add your first client to get started!
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = `
+      <div class="clients-grid">
+        ${clients.map(client => `
+          <div class="client-card" data-client-id="${escapeHTML(String(client.id))}">
+            <div class="client-card-header">
+              <strong>${escapeHTML(client.name)}</strong>
+              ${client.company ? `<span style="color:var(--text-secondary);font-size:0.875rem;margin-left:0.5rem;">${escapeHTML(client.company)}</span>` : ''}
+            </div>
+            ${client.email ? `<div class="client-info">${escapeHTML(client.email)}</div>` : ''}
+            ${client.phone ? `<div class="client-info">${escapeHTML(client.phone)}</div>` : ''}
+            ${client.address ? `<div class="client-info">${escapeHTML(client.address)}</div>` : ''}
+            <div class="client-card-actions">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="openClientModal('${escapeHTML(String(client.id))}')">Edit</button>
+              <button type="button" class="btn btn-danger btn-sm" onclick="deleteClientById('${escapeHTML(String(client.id))}')">Delete</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (err) {
+    console.error('Error loading clients:', err);
+    listEl.innerHTML = `
+      <div style="text-align:center;color:var(--danger);padding:1rem;">
+        Failed to load clients. Please try again.
+      </div>
+    `;
+  }
+}
+
+function openClientModal(clientId = null) {
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.id = 'client-modal-overlay';
+  overlay.innerHTML = `
+    <div class="client-modal">
+      <h3 style="font-size:1.125rem;font-weight:600;margin-bottom:0.5rem;">${clientId ? 'Edit Client' : 'Add New Client'}</h3>
+      <form id="client-form">
+        <div class="form-group">
+          <label for="client-name-input">Client Name *</label>
+          <input type="text" id="client-name-input" required placeholder="Acme Corp">
+        </div>
+        <div class="form-group">
+          <label for="client-company-input">Company</label>
+          <input type="text" id="client-company-input" placeholder="Acme Corporation">
+        </div>
+        <div class="form-group">
+          <label for="client-email-input">Email</label>
+          <input type="email" id="client-email-input" placeholder="contact@example.com">
+        </div>
+        <div class="form-group">
+          <label for="client-phone-input">Phone</label>
+          <input type="tel" id="client-phone-input" placeholder="(555) 123-4567">
+        </div>
+        <div class="form-group">
+          <label for="client-address-input">Address</label>
+          <textarea id="client-address-input" rows="2" placeholder="123 Business St, Suite 100, City, State 12345"></textarea>
+        </div>
+        <div class="confirm-actions">
+          <button type="button" class="btn btn-secondary" id="client-cancel-btn">Cancel</button>
+          <button type="submit" class="btn btn-primary">${clientId ? 'Update' : 'Add'} Client</button>
+        </div>
+      </form>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+
+  const form = overlay.querySelector('#client-form');
+  const cancelBtn = overlay.querySelector('#client-cancel-btn');
+
+  cancelBtn.addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.remove();
+  });
+
+  if (clientId) {
+    getClient(clientId).then(client => {
+      document.getElementById('client-name-input').value = client.name || '';
+      document.getElementById('client-company-input').value = client.company || '';
+      document.getElementById('client-email-input').value = client.email || '';
+      document.getElementById('client-phone-input').value = client.phone || '';
+      document.getElementById('client-address-input').value = client.address || '';
+    }).catch(err => {
+      console.error('Error loading client:', err);
+      showToast('Failed to load client data.', 'error');
+      overlay.remove();
+    });
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const clientData = {
+      id: clientId,
+      name: document.getElementById('client-name-input').value.trim(),
+      company: document.getElementById('client-company-input').value.trim(),
+      email: document.getElementById('client-email-input').value.trim(),
+      phone: document.getElementById('client-phone-input').value.trim(),
+      address: document.getElementById('client-address-input').value.trim()
+    };
+
+    if (!clientData.name) {
+      showToast('Client name is required.', 'error');
+      return;
+    }
+
+    try {
+      await saveClient(clientData);
+      showToast(`Client ${clientId ? 'updated' : 'added'}!`, 'success');
+      overlay.remove();
+      loadClients({ defaultClient: document.getElementById('default-client-select')?.value || null });
+    } catch (err) {
+      showToast(err.message || `Failed to ${clientId ? 'update' : 'add'} client.`, 'error');
+      console.error(err);
+    }
+  });
+}
+
+async function deleteClientById(clientId) {
+  showConfirmModal('Delete this client? This action cannot be undone.', async () => {
+    try {
+      await deleteClient(clientId);
+      showToast('Client deleted.', 'success');
+      loadClients({ defaultClient: document.getElementById('default-client-select')?.value || null });
+    } catch (err) {
+      showToast(err.message || 'Failed to delete client.', 'error');
+      console.error(err);
+    }
+  });
 }
