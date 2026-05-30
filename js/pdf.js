@@ -1166,7 +1166,55 @@ function sharpenCanvas(canvas, amount) {
   return canvas;
 }
 
+async function generatePDFViaServer(elementId, filename) {
+  var element = document.getElementById(elementId);
+  if (!element) throw new Error('Preview element not found.');
+
+  var clone = element.cloneNode(true);
+  clone.id = 'visual-pdf-clone';
+  clone.style.width = '794px';
+  clone.style.padding = '40px';
+  clone.style.background = 'white';
+  clone.style.color = '#111';
+
+  var style = document.createElement('style');
+  style.textContent = Array.from(document.styleSheets)
+    .flatMap(function(sheet) {
+      try { return Array.from(sheet.cssRules).map(function(r) { return r.cssText; }); }
+      catch (e) { return []; }
+    })
+    .join('\n');
+  clone.insertBefore(style, clone.firstChild);
+
+  var html = '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;">' + clone.outerHTML + '</body></html>';
+
+  var resp = await fetch('/api/pdf/generate-pdf', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ html: html })
+  });
+
+  if (!resp.ok) throw new Error('Server PDF failed');
+
+  var blob = await resp.blob();
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename + '.pdf';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 async function generatePDFFromHTML(elementId, filename) {
+  try {
+    await generatePDFViaServer(elementId, filename);
+    return;
+  } catch (serverErr) {
+    console.warn('Server PDF generation failed, falling back to html2canvas:', serverErr);
+  }
+
   if (!window.html2canvas) {
     throw new Error('html2canvas library not loaded. Please check your internet connection and reload the page.');
   }
