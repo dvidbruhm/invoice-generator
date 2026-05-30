@@ -1134,6 +1134,38 @@ async function generatePDF(invoice, settings) {
   doc.save(filename);
 }
 
+function sharpenCanvas(canvas, amount) {
+  var w = canvas.width;
+  var h = canvas.height;
+  var ctx = canvas.getContext('2d');
+  var imageData = ctx.getImageData(0, 0, w, h);
+  var src = imageData.data;
+
+  var output = ctx.createImageData(w, h);
+  var dst = output.data;
+
+  var a = -amount;
+  var k = a * 4 + 1;
+
+  for (var y = 1; y < h - 1; y++) {
+    for (var x = 1; x < w - 1; x++) {
+      var idx = (y * w + x) * 4;
+      for (var c = 0; c < 3; c++) {
+        var val = k * src[idx + c]
+          + a * src[((y - 1) * w + x) * 4 + c]
+          + a * src[((y + 1) * w + x) * 4 + c]
+          + a * src[(y * w + x - 1) * 4 + c]
+          + a * src[(y * w + x + 1) * 4 + c];
+        dst[idx + c] = val < 0 ? 0 : val > 255 ? 255 : val;
+      }
+      dst[idx + 3] = src[idx + 3];
+    }
+  }
+
+  ctx.putImageData(output, 0, 0);
+  return canvas;
+}
+
 async function generatePDFFromHTML(elementId, filename) {
   if (!window.html2canvas) {
     throw new Error('html2canvas library not loaded. Please check your internet connection and reload the page.');
@@ -1153,18 +1185,23 @@ async function generatePDFFromHTML(elementId, filename) {
   clone.style.padding = '40px';
   clone.style.background = 'white';
   clone.style.color = '#111';
+  clone.style.webkitFontSmoothing = 'antialiased';
+  clone.style.textRendering = 'optimizeLegibility';
   clone.style.position = 'absolute';
   clone.style.left = '-9999px';
   clone.style.top = '0';
   document.body.appendChild(clone);
 
   try {
-    const canvas = await html2canvas(clone, {
+    var rawCanvas = await html2canvas(clone, {
       scale: 4,
       useCORS: true,
       backgroundColor: '#ffffff',
       logging: false
     });
+
+    sharpenCanvas(rawCanvas, 0.3);
+    var canvas = rawCanvas;
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({
