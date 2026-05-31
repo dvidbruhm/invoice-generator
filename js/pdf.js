@@ -1189,9 +1189,10 @@ async function generatePDFViaServer(elementId, filename) {
 
   var html = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>html,body{margin:0;padding:0;background:white;min-height:11in;-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{margin:0;size:letter}</style></head><body>' + clone.outerHTML + '</body></html>';
 
+  var token = localStorage.getItem('token') || '';
   var resp = await fetch('/api/pdf/generate-pdf', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
     body: JSON.stringify({ html: html })
   });
 

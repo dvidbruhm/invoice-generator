@@ -36,8 +36,8 @@ async function renderInvoiceForm(editId = null) {
     
     const nextNum = editId ? { num: 0 } : await getNextInvoiceNumber();
     const formattedNum = editId ? invoice.number : await formatInvoiceNumber(nextNum.num);
-    const today = new Date().toISOString().split('T')[0];
-    const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    const today = getLocalDateString();
+    const dueDate = getLocalDateString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
     
     const lineItems = (invoice ? invoice.lineItems : [{ description: '', rate: '', hours: '' }]).map((item, i) => ({
       ...item,
@@ -178,9 +178,9 @@ async function renderInvoiceForm(editId = null) {
           </div>
           
           <div class="btn-group">
-            <button type="submit" class="btn btn-primary">${editId ? 'Update & Generate PDF' : 'Save & Generate PDF'}</button>
-            <button type="button" class="btn btn-secondary" onclick="saveDraft()">Save Draft</button>
-            <button type="button" class="btn btn-secondary" onclick="saveAndDownloadVisualPDF()" title="PDF that looks exactly like the preview">Visual PDF</button>
+            <button type="submit" class="btn btn-primary" id="btn-generate-pdf">${editId ? 'Update & Generate PDF' : 'Save & Generate PDF'}</button>
+            <button type="button" class="btn btn-secondary" onclick="saveDraft()" id="btn-save-draft">Save Draft <span style="font-size:0.7rem;opacity:0.7;">Ctrl+S</span></button>
+            <button type="button" class="btn btn-secondary" onclick="saveAndDownloadVisualPDF()" title="PDF that looks exactly like the preview" id="btn-visual-pdf">Visual PDF</button>
             <a href="#/history" class="btn btn-secondary">Cancel</a>
           </div>
         </form>
@@ -235,7 +235,6 @@ async function renderInvoiceForm(editId = null) {
     }, 50);
   }
   
-  setupClientAutocomplete();
   await setupClientDropdown(editId, invoice);
   setupFormKeyboardShortcuts();
   
@@ -269,9 +268,9 @@ function renderLineItemRow(item, index, settings, currencySymbol, totalItems) {
       <td class="amount-cell">${formatCurrency(amount, settings.currency)}</td>
       <td rowspan="2">
         <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
-          <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" ${index === 0 ? 'disabled' : ''}>&#8593;</button>
-          <button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" ${index === totalItems - 1 ? 'disabled' : ''}>&#8595;</button>
-          <button type="button" class="remove-btn" onclick="removeLineItem(this)" ${index === 0 ? 'disabled' : ''}>&times;</button>
+          <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" aria-label="Move item up" ${index === 0 ? 'disabled' : ''}>&#8593;</button>
+          <button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" aria-label="Move item down" ${index === totalItems - 1 ? 'disabled' : ''}>&#8595;</button>
+          <button type="button" class="remove-btn" onclick="removeLineItem(this)" aria-label="Remove item" ${index === 0 ? 'disabled' : ''}>&times;</button>
         </div>
       </td>
     </tr>
@@ -302,12 +301,12 @@ function renderTotalsHTML(lineItems, settings) {
 }
 
 function getNextWeekday(dateStr) {
-  if (!dateStr) return new Date().toISOString().split('T')[0];
+  if (!dateStr) return getLocalDateString();
   const date = new Date(dateStr + 'T00:00:00');
   do {
     date.setDate(date.getDate() + 1);
   } while (date.getDay() === 0 || date.getDay() === 6);
-  return date.toISOString().split('T')[0];
+  return getLocalDateString(date);
 }
 
 function addLineItem() {
@@ -319,7 +318,7 @@ function addLineItem() {
   const lastInputRow = inputRows[inputRows.length - 1];
   const defaultDate = lastInputRow
     ? getNextWeekday(lastInputRow.querySelector('.item-date')?.value)
-    : (document.getElementById('invoice-date')?.value || new Date().toISOString().split('T')[0]);
+    : (document.getElementById('invoice-date')?.value || getLocalDateString());
 
   const inputRow = document.createElement('tr');
   inputRow.dataset.itemIndex = index;
@@ -336,9 +335,9 @@ function addLineItem() {
     <td class="amount-cell">${formatCurrency(0, settings.currency)}</td>
     <td rowspan="2">
       <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
-        <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" disabled>&#8593;</button>
-        <button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" disabled>&#8595;</button>
-        <button type="button" class="remove-btn" onclick="removeLineItem(this)">&times;</button>
+        <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" aria-label="Move item up" disabled>&#8593;</button>
+        <button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" aria-label="Move item down" disabled>&#8595;</button>
+        <button type="button" class="remove-btn" onclick="removeLineItem(this)" aria-label="Remove item">&times;</button>
       </div>
     </td>
   `;
@@ -574,7 +573,7 @@ function applyCSVImport() {
   allItems.forEach((item, i) => {
     const amount = (parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0);
     const defaultDate = i === 0
-      ? (document.getElementById('invoice-date')?.value || new Date().toISOString().split('T')[0])
+      ? (document.getElementById('invoice-date')?.value || getLocalDateString())
       : getNextWeekday(allItems[i - 1].date || '');
 
     const inputRow = document.createElement('tr');
@@ -592,9 +591,9 @@ function applyCSVImport() {
       <td class="amount-cell">${formatCurrency(amount, settings.currency)}</td>
       <td rowspan="2">
         <div style="display:flex;gap:0.25rem;justify-content:flex-end;">
-          <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" ${i === 0 ? 'disabled' : ''}>&#8593;</button>
-          <button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" ${i === allItems.length - 1 ? 'disabled' : ''}>&#8595;</button>
-          <button type="button" class="remove-btn" onclick="removeLineItem(this)" ${i === 0 ? 'disabled' : ''}>&times;</button>
+          <button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" aria-label="Move item up" ${i === 0 ? 'disabled' : ''}>&#8593;</button>
+          <button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" aria-label="Move item down" ${i === allItems.length - 1 ? 'disabled' : ''}>&#8595;</button>
+          <button type="button" class="remove-btn" onclick="removeLineItem(this)" aria-label="Remove item" ${i === 0 ? 'disabled' : ''}>&times;</button>
         </div>
       </td>
     `;
@@ -782,12 +781,14 @@ async function handleFormSubmit(isDraft) {
   };
   
   try {
+    const btn = document.getElementById('btn-generate-pdf');
+    const draftBtn = document.getElementById('btn-save-draft');
+    const visualBtn = document.getElementById('btn-visual-pdf');
+    if (btn) { btn.disabled = true; btn.textContent = 'Generating...'; }
+    if (draftBtn) draftBtn.disabled = true;
+    if (visualBtn) visualBtn.disabled = true;
+
     await saveInvoice(invoice);
-    
-    if (!editId) {
-      const nextNum = await getNextInvoiceNumber();
-      await updateInvoiceNumberCounter(nextNum.num);
-    }
     
     if (!isDraft) {
       const settings = await getAllSettings();
@@ -813,14 +814,18 @@ function saveDraft() {
 }
 
 async function saveAndDownloadVisualPDF() {
+  const visualBtn = document.getElementById('btn-visual-pdf');
+  if (visualBtn) { visualBtn.disabled = true; visualBtn.textContent = 'Generating...'; }
   const previewEl = document.getElementById('live-preview');
   if (!previewEl) {
     showToast('Preview not found.', 'error');
+    if (visualBtn) { visualBtn.disabled = false; visualBtn.textContent = 'Visual PDF'; }
     return;
   }
   const invoiceWrapper = previewEl.querySelector('.preview-invoice');
   if (!invoiceWrapper) {
     showToast('Preview not rendered yet.', 'error');
+    if (visualBtn) { visualBtn.disabled = false; visualBtn.textContent = 'Visual PDF'; }
     return;
   }
   const invoiceNumber = document.getElementById('invoice-number')?.value || 'invoice';
@@ -834,6 +839,7 @@ async function saveAndDownloadVisualPDF() {
     console.error(err);
   } finally {
     invoiceWrapper.id = prevId || '';
+    if (visualBtn) { visualBtn.disabled = false; visualBtn.textContent = 'Visual PDF'; }
   }
 }
 
@@ -892,10 +898,6 @@ function showConfirmModal(message, onConfirm) {
   overlay.addEventListener('click', (e) => {
     if (e.target === overlay) overlay.remove();
   });
-}
-
-async function setupClientAutocomplete() {
-  // Deprecated — setupClientDropdown is called directly with params
 }
 
 function fillClientFields(client) {
@@ -962,10 +964,17 @@ async function setupClientDropdown(editId, invoice) {
   }
 }
 
+let _formKeyHandler = null;
+
 function setupFormKeyboardShortcuts() {
-  document.addEventListener('keydown', function formKeyHandler(e) {
+  if (_formKeyHandler) {
+    document.removeEventListener('keydown', _formKeyHandler);
+    _formKeyHandler = null;
+  }
+  _formKeyHandler = function formKeyHandler(e) {
     if (!document.getElementById('invoice-form')) {
-      document.removeEventListener('keydown', formKeyHandler);
+      document.removeEventListener('keydown', _formKeyHandler);
+      _formKeyHandler = null;
       return;
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
@@ -976,7 +985,8 @@ function setupFormKeyboardShortcuts() {
       e.preventDefault();
       handleFormSubmit(false);
     }
-  });
+  };
+  document.addEventListener('keydown', _formKeyHandler);
 }
 
 function renderLivePreview(settings, invoice) {
@@ -1024,7 +1034,7 @@ function renderLivePreview(settings, invoice) {
 
       <div class="preview-meta">
         <div class="preview-meta-left">
-          ${settings.logo ? `<img src="${settings.logo}" class="preview-logo">` : ''}
+          ${settings.logo ? `<img src="${safeLogoSrc(settings.logo)}" class="preview-logo">` : ''}
           <div class="preview-company" style="color:${accent};">${escapeHTML(companyName)}</div>
           ${settings.companyAddress ? `<div class="preview-info">${escapeHTML(settings.companyAddress)}</div>` : ''}
           ${settings.companyEmail ? `<div class="preview-info">${escapeHTML(settings.companyEmail)}</div>` : ''}
@@ -1123,7 +1133,7 @@ function renderProgicielsPreview(settings, invoice, accent, companyName, subtota
       <!-- Two-column header: company left, client box right -->
       <div class="preview-meta" style="align-items:flex-start;">
         <div class="preview-meta-left" style="color:#1c252c;">
-          ${settings.logo ? `<img src="${settings.logo}" class="preview-logo">` : ''}
+          ${settings.logo ? `<img src="${safeLogoSrc(settings.logo)}" class="preview-logo">` : ''}
           <div class="preview-company" style="color:#1c252c;font-size:1.1rem;">${escapeHTML(companyName)}</div>
           ${settings.companyPhone ? `<div class="preview-info">${escapeHTML(settings.companyPhone)}</div>` : ''}
           ${settings.companyEmail ? `<div class="preview-info">${escapeHTML(settings.companyEmail)}</div>` : ''}

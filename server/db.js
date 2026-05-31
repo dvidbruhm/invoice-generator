@@ -51,6 +51,21 @@ async function initDB() {
           )
         `);
 
+        await client.query(`
+          CREATE TABLE IF NOT EXISTS clients (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255),
+            address TEXT,
+            phone VARCHAR(255),
+            company VARCHAR(255),
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW(),
+            UNIQUE(user_id, name)
+          )
+        `);
+
         console.log('Database initialized successfully');
         return;
       } finally {

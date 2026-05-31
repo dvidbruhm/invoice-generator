@@ -54,46 +54,41 @@ router.delete('/', async (req, res) => {
 });
 
 router.get('/next-invoice-number', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
-      `SELECT value FROM settings WHERE user_id = $1 AND key = 'invoicePattern'`,
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      `SELECT value FROM settings WHERE user_id = $1 AND key = 'invoicePattern' FOR UPDATE`,
       [req.userId]
     );
     const pattern = result.rows[0]?.value || { prefix: 'INV', year: new Date().getFullYear(), lastNum: 0 };
     const currentYear = new Date().getFullYear();
 
+    let num;
     if (pattern.year !== currentYear) {
-      res.json({ prefix: pattern.prefix || 'INV', year: currentYear, num: 1 });
+      pattern.year = currentYear;
+      pattern.lastNum = 1;
+      num = 1;
     } else {
-      res.json({ prefix: pattern.prefix || 'INV', year: currentYear, num: (pattern.lastNum || 0) + 1 });
+      num = (pattern.lastNum || 0) + 1;
+      pattern.lastNum = num;
     }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to get next invoice number' });
-  }
-});
 
-router.post('/update-invoice-counter', async (req, res) => {
-  const { num } = req.body;
-  try {
-    const currentYear = new Date().getFullYear();
-    const result = await pool.query(
-      `SELECT value FROM settings WHERE user_id = $1 AND key = 'invoicePattern'`,
-      [req.userId]
-    );
-    const pattern = result.rows[0]?.value || { prefix: 'INV', year: currentYear, lastNum: 0 };
-    pattern.year = currentYear;
-    pattern.lastNum = num;
-
-    await pool.query(
+    await client.query(
       `INSERT INTO settings (user_id, key, value) VALUES ($1, $2, $3)
        ON CONFLICT (user_id, key) DO UPDATE SET value = EXCLUDED.value`,
       [req.userId, 'invoicePattern', JSON.stringify(pattern)]
     );
-    res.json({ success: true });
+
+    await client.query('COMMIT');
+    res.json({ prefix: pattern.prefix || 'INV', year: currentYear, num });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error(err);
-    res.status(500).json({ error: 'Failed to update counter' });
+    res.status(500).json({ error: 'Failed to get next invoice number' });
+  } finally {
+    client.release();
   }
 });
 

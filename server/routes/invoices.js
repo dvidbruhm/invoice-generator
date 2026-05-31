@@ -61,6 +61,7 @@ router.post('/', async (req, res) => {
           updatedAt, invoice.id, req.userId
         ]
       );
+      res.json(invoice);
     } else {
       await pool.query(
         `INSERT INTO invoices
@@ -75,8 +76,8 @@ router.post('/', async (req, res) => {
           invoice.accentColor, status, createdAt, updatedAt
         ]
       );
+      res.status(201).json(invoice);
     }
-    res.json(invoice);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to save invoice' });

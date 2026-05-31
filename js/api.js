@@ -111,16 +111,44 @@ async function getNextInvoiceNumber() {
   return apiFetch('/api/settings/next-invoice-number');
 }
 
-async function updateInvoiceNumberCounter(num) {
-  return apiFetch('/api/settings/update-invoice-counter', {
-    method: 'POST',
-    body: JSON.stringify({ num })
-  });
-}
-
 async function formatInvoiceNumber(num) {
   const settings = await getSetting('invoicePattern') || { prefix: 'INV' };
   const year = new Date().getFullYear();
   const padded = String(num).padStart(3, '0');
   return `${settings.prefix}-${year}-${padded}`;
+}
+
+async function getAllClients() {
+  return apiFetch('/api/clients');
+}
+
+async function getClient(id) {
+  return apiFetch(`/api/clients/${id}`);
+}
+
+async function saveClient(client) {
+  if (client.id) {
+    return apiFetch(`/api/clients/${client.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(client)
+    });
+  }
+  return apiFetch('/api/clients', {
+    method: 'POST',
+    body: JSON.stringify(client)
+  });
+}
+
+async function deleteClient(id) {
+  return apiFetch(`/api/clients/${id}`, { method: 'DELETE' });
+}
+
+async function getClientList() {
+  try {
+    const clients = await getAllClients();
+    return clients.map(c => c.name);
+  } catch (err) {
+    console.error('Failed to get client list:', err);
+    return [];
+  }
 }

@@ -95,6 +95,7 @@ function showAuthTab(tab) {
     loginTab.style.borderBottomColor = 'var(--accent)';
     regTab.style.color = 'var(--text-secondary)';
     regTab.style.borderBottomColor = 'transparent';
+    setTimeout(() => document.getElementById('auth-email')?.focus(), 50);
   } else {
     loginForm.style.display = 'none';
     regForm.style.display = '';
@@ -102,5 +103,6 @@ function showAuthTab(tab) {
     regTab.style.borderBottomColor = 'var(--accent)';
     loginTab.style.color = 'var(--text-secondary)';
     loginTab.style.borderBottomColor = 'transparent';
+    setTimeout(() => document.getElementById('reg-email')?.focus(), 50);
   }
 }

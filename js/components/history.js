@@ -248,15 +248,14 @@ async function duplicateInvoice(id) {
       ...invoice,
       id: Date.now().toString(),
       number: newNumber,
-      date: new Date().toISOString().split('T')[0],
-      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      date: getLocalDateString(),
+      dueDate: getLocalDateString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
       status: 'draft',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
     
     await saveInvoice(newInvoice);
-    await updateInvoiceNumberCounter(nextNum.num);
     showToast('Invoice duplicated!', 'success');
     renderHistory();
   } catch (err) {

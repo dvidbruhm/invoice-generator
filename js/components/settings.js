@@ -64,7 +64,7 @@ async function renderSettings() {
         <div class="collapsible-content">
           <div class="logo-upload">
             <div class="logo-preview" id="logo-preview">
-              ${merged.logo ? `<img src="${merged.logo}" alt="Logo">` : '<span style="color: var(--text-secondary); font-size: 0.75rem;">No logo</span>'}
+              ${merged.logo ? `<img src="${safeLogoSrc(merged.logo)}" alt="Logo">` : '<span style="color: var(--text-secondary); font-size: 0.75rem;">No logo</span>'}
             </div>
             <div>
               <input type="file" id="logo-upload" accept="image/*" style="display: none;">
@@ -137,14 +137,22 @@ async function renderSettings() {
             <div class="form-group">
               <label class="checkbox-label">
                 <input type="checkbox" id="tax-tps" ${merged.taxTPS ? 'checked' : ''}>
-                <span>Apply TPS (5%)</span>
+                <span>Apply TPS</span>
               </label>
             </div>
             <div class="form-group">
               <label class="checkbox-label">
                 <input type="checkbox" id="tax-tvq" ${merged.taxTVQ ? 'checked' : ''}>
-                <span>Apply TVQ (9.975%)</span>
+                <span>Apply TVQ</span>
               </label>
+            </div>
+            <div class="form-group">
+              <label for="tps-rate">TPS Rate (%)</label>
+              <input type="number" id="tps-rate" value="${((merged.tpsRate || 0.05) * 100).toFixed(2)}" step="0.01" min="0" max="100">
+            </div>
+            <div class="form-group">
+              <label for="tvq-rate">TVQ Rate (%)</label>
+              <input type="number" id="tvq-rate" value="${((merged.tvqRate || 0.09975) * 100).toFixed(3)}" step="0.001" min="0" max="100">
             </div>
           </div>
         </div>
@@ -360,6 +368,8 @@ async function saveSettingsForm() {
       currency: document.getElementById('currency').value,
       taxTPS: document.getElementById('tax-tps').checked,
       taxTVQ: document.getElementById('tax-tvq').checked,
+      tpsRate: parseFloat(document.getElementById('tps-rate').value) / 100 || 0.05,
+      tvqRate: parseFloat(document.getElementById('tvq-rate').value) / 100 || 0.09975,
       dateFormat: document.getElementById('date-format').value,
       datePosition: document.getElementById('date-position').value,
       paymentTerms: document.getElementById('payment-terms').value,
@@ -406,7 +416,7 @@ function handleLogoUpload(e) {
   const reader = new FileReader();
   reader.onload = async (event) => {
     await saveSetting('logo', event.target.result);
-    document.getElementById('logo-preview').innerHTML = `<img src="${event.target.result}" alt="Logo">`;
+    document.getElementById('logo-preview').innerHTML = `<img src="${safeLogoSrc(event.target.result)}" alt="Logo">`;
     showToast('Logo uploaded!', 'success');
   };
   reader.readAsDataURL(file);

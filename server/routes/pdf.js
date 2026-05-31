@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const puppeteer = require('puppeteer');
+const { authMiddleware } = require('../middleware/auth');
 
 let browserPromise = null;
 
@@ -15,6 +16,9 @@ function getBrowser() {
         '--disable-gpu'
       ],
       executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined
+    }).catch(err => {
+      browserPromise = null;
+      throw err;
     });
   }
   return browserPromise;
@@ -24,7 +28,7 @@ router.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
 
-router.post('/generate-pdf', async (req, res) => {
+router.post('/generate-pdf', authMiddleware, async (req, res) => {
   const { html } = req.body;
   if (!html) {
     return res.status(400).json({ error: 'html is required' });
@@ -32,7 +36,14 @@ router.post('/generate-pdf', async (req, res) => {
 
   let page;
   try {
-    const browser = await getBrowser();
+    let browser;
+    try {
+      browser = await getBrowser();
+    } catch (launchErr) {
+      browserPromise = null;
+      browser = await getBrowser();
+    }
+
     page = await browser.newPage();
 
     await page.setContent(html, {
@@ -52,7 +63,10 @@ router.post('/generate-pdf', async (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename=invoice.pdf');
     res.end(pdfBuffer, 'binary');
   } catch (err) {
-    if (page) await page.close();
+    if (page) {
+      try { await page.close(); } catch (_) {}
+    }
+    browserPromise = null;
     console.error('PDF generation error:', err);
     res.status(500).json({ error: 'PDF generation failed' });
   }

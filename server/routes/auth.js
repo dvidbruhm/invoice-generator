@@ -4,10 +4,34 @@ const jwt = require('jsonwebtoken');
 const { pool } = require('../db');
 const router = express.Router();
 
-router.post('/register', async (req, res) => {
+const loginAttempts = new Map();
+
+function rateLimitMiddleware(req, res, next) {
+  const ip = req.ip || req.connection.remoteAddress;
+  const now = Date.now();
+  const attempts = loginAttempts.get(ip) || [];
+  const recent = attempts.filter(t => now - t < 15 * 60 * 1000);
+  if (recent.length >= 10) {
+    return res.status(429).json({ error: 'Too many attempts. Please try again later.' });
+  }
+  recent.push(now);
+  loginAttempts.set(ip, recent);
+  next();
+}
+
+router.post('/register', rateLimitMiddleware, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password required' });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Invalid email format' });
+  }
+
+  if (password.length < 6) {
+    return res.status(400).json({ error: 'Password must be at least 6 characters' });
   }
 
   try {
@@ -31,7 +55,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', rateLimitMiddleware, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password required' });

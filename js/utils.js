@@ -12,7 +12,14 @@ function formatCurrency(amount, currency) {
   if (currency === 'EUR') {
     return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(amount);
   }
-  return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount);
+  if (currency === 'CAD') {
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount);
+  }
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'CAD' }).format(amount);
+  } catch (_) {
+    return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(amount);
+  }
 }
 
 function getCurrencySymbol(currency) {
@@ -81,13 +88,18 @@ function debounce(fn, ms) {
   };
 }
 
-async function getClientList() {
-  try {
-    const invoices = await getAllInvoices();
-    return [...new Set(invoices.map(inv => inv.clientName).filter(Boolean))];
-  } catch (e) {
-    return [];
-  }
+function safeLogoSrc(logo) {
+  if (!logo) return '';
+  if (typeof logo === 'string' && logo.startsWith('data:image/')) return logo;
+  return '';
+}
+
+function getLocalDateString(date) {
+  const d = date || new Date();
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 function parseCSV(text) {
