@@ -240,6 +240,7 @@ async function renderInvoiceForm(editId = null) {
   
   } catch (err) {
     console.error('Error rendering invoice form:', err);
+    if (isSessionExpired()) return;
     app.innerHTML = `
       <div class="page-header">
         <h1>Error</h1>

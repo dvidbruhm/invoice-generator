@@ -336,6 +336,7 @@ async function renderSettings() {
   renderNav();
   } catch (err) {
     console.error('Error rendering settings:', err);
+    if (isSessionExpired()) return;
     app.innerHTML = `
       <div class="page-header">
         <h1>Error</h1>

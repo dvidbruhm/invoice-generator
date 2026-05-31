@@ -90,6 +90,7 @@ async function renderDashboard() {
     renderNav();
   } catch (err) {
     console.error('Error rendering dashboard:', err);
+    if (isSessionExpired()) return;
     app.innerHTML = `
       <div class="page-header">
         <h1>Error</h1>

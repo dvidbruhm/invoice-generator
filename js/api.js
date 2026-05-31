@@ -1,7 +1,13 @@
 const API_BASE = '';
 
+let _sessionExpired = false;
+
 function getToken() {
   return localStorage.getItem('token');
+}
+
+function isSessionExpired() {
+  return _sessionExpired;
 }
 
 async function apiFetch(url, options = {}) {
@@ -15,6 +21,7 @@ async function apiFetch(url, options = {}) {
   });
 
   if (res.status === 401) {
+    _sessionExpired = true;
     localStorage.removeItem('token');
     window.location.hash = '#/login';
     throw new Error('Session expired. Please log in again.');
@@ -38,6 +45,7 @@ async function register(email, password) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Registration failed');
   localStorage.setItem('token', data.token);
+  _sessionExpired = false;
   return data;
 }
 
@@ -50,6 +58,7 @@ async function login(email, password) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Login failed');
   localStorage.setItem('token', data.token);
+  _sessionExpired = false;
   return data;
 }
 

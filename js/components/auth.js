@@ -69,8 +69,7 @@ function renderAuth() {
 
     try {
       await register(email, password);
-      window.location.hash = '#/';
-    } catch (err) {
+      window.location.hash = '#/';    } catch (err) {
       document.getElementById('reg-error').textContent = err.message;
     }
   });
