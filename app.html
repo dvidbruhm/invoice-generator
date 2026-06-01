@@ -21,9 +21,33 @@
         <a href="#/create" class="nav-link">New Invoice</a>
         <a href="#/history" class="nav-link">History</a>
         <a href="#/settings" class="nav-link">Settings</a>
-        <button id="theme-toggle" class="theme-toggle" onclick="toggleTheme()" title="Toggle dark mode">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-        </button>
+        <div id="theme-picker" class="theme-picker">
+          <button id="theme-picker-btn" class="theme-picker-btn" onclick="toggleThemePicker()" title="Change theme">
+            <span id="theme-picker-dot" class="theme-picker-dot"></span>
+            <span id="theme-picker-label" class="theme-picker-label">Light</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div id="theme-picker-menu" class="theme-picker-menu">
+            <button class="theme-picker-option" data-theme="light" onclick="setTheme('light')">
+              <span class="theme-picker-dot" style="background:#f5f5f5;border:1px solid #ccc;"></span> Light
+            </button>
+            <button class="theme-picker-option" data-theme="dark" onclick="setTheme('dark')">
+              <span class="theme-picker-dot" style="background:#0f1117;border:1px solid #444;"></span> Dark
+            </button>
+            <button class="theme-picker-option" data-theme="dracula" onclick="setTheme('dracula')">
+              <span class="theme-picker-dot" style="background:#bd93f9;"></span> Dracula
+            </button>
+            <button class="theme-picker-option" data-theme="catppuccin" onclick="setTheme('catppuccin')">
+              <span class="theme-picker-dot" style="background:#89b4fa;"></span> Catppuccin
+            </button>
+            <button class="theme-picker-option" data-theme="sepia" onclick="setTheme('sepia')">
+              <span class="theme-picker-dot" style="background:#d4c5a9;"></span> Sepia
+            </button>
+            <button class="theme-picker-option" data-theme="kanagawa" onclick="setTheme('kanagawa')">
+              <span class="theme-picker-dot" style="background:#7e9cd8;"></span> Kanagawa
+            </button>
+          </div>
+        </div>
         <div id="nav-auth" style="display:flex;align-items:center;"></div>
       </div>
     </div>
