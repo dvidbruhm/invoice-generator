@@ -328,6 +328,11 @@ body {
   font-size: 0.8125rem;
 }
 
+.screenshot-placeholder img {
+  width: 100%;
+  display: block;
+}
+
 /* Footer */
 .landing-footer {
   padding: 2.5rem 2rem;
