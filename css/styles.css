@@ -195,7 +195,7 @@ body {
   gap: 0.375rem;
   background: none;
   border: 1px solid var(--border);
-  color: var(--text-secondary);
+  color: var(--text);
   cursor: pointer;
   padding: 0.375rem 0.625rem;
   border-radius: 6px;
