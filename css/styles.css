@@ -2754,3 +2754,7 @@ main {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-md);
 }
+
+@keyframes autosave-spin {
+  to { transform: rotate(360deg); }
+}

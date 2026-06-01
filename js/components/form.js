@@ -11,12 +11,114 @@ function clearFormDirty() {
   formDirty = false;
 }
 
-window.addEventListener('beforeunload', (e) => {
-  if (formDirty) {
-    e.preventDefault();
-    e.returnValue = '';
+var autosaveState = 'idle';
+var autosaveTimer = null;
+var autosaveLastSaved = null;
+
+function scheduleAutosave() {
+  if (autosaveTimer) clearTimeout(autosaveTimer);
+  if (autosaveState !== 'saving') {
+    autosaveState = 'dirty';
+    updateAutosaveIndicator();
   }
-});
+  autosaveTimer = setTimeout(function() {
+    performAutosave();
+  }, 3000);
+}
+
+async function performAutosave() {
+  var clientName = document.getElementById('client-name');
+  var hasContent = (clientName && clientName.value.trim()) || hasAnyLineItemContent();
+  if (!hasContent) return;
+
+  autosaveState = 'saving';
+  updateAutosaveIndicator();
+
+  try {
+    var editId = document.getElementById('edit-id').value;
+    var invoice = {
+      id: editId || Date.now().toString(),
+      number: document.getElementById('invoice-number').value,
+      date: document.getElementById('invoice-date').value,
+      dueDate: document.getElementById('invoice-due-date').value,
+      clientName: document.getElementById('client-name').value,
+      clientEmail: document.getElementById('client-email').value,
+      clientAddress: document.getElementById('client-address').value,
+      lineItems: collectLineItems(),
+      notes: document.getElementById('invoice-notes').value,
+      template: document.getElementById('invoice-template') ? document.getElementById('invoice-template').value : undefined,
+      accentColor: document.getElementById('invoice-accent-color') ? document.getElementById('invoice-accent-color').value : undefined,
+      status: 'draft'
+    };
+
+    if (!editId) {
+      invoice.createdAt = new Date().toISOString();
+      document.getElementById('edit-id').value = invoice.id;
+    }
+    invoice.updatedAt = new Date().toISOString();
+
+    await saveInvoice(invoice);
+    autosaveState = 'saved';
+    autosaveLastSaved = Date.now();
+    updateAutosaveIndicator();
+  } catch (err) {
+    autosaveState = 'error';
+    updateAutosaveIndicator();
+    console.error('Autosave failed:', err);
+  }
+}
+
+function collectLineItems() {
+  var inputRows = document.querySelectorAll('#line-items-body tr.item-row-inputs');
+  var items = [];
+  inputRows.forEach(function(row) {
+    var descRow = row.nextElementSibling;
+    items.push({
+      date: row.querySelector('.item-date') ? row.querySelector('.item-date').value : '',
+      description: descRow && descRow.querySelector('.item-description') ? descRow.querySelector('.item-description').value : '',
+      rate: row.querySelector('.item-rate') ? row.querySelector('.item-rate').value : '',
+      hours: row.querySelector('.item-hours') ? row.querySelector('.item-hours').value : ''
+    });
+  });
+  return items;
+}
+
+function hasAnyLineItemContent() {
+  var inputRows = document.querySelectorAll('#line-items-body tr.item-row-inputs');
+  for (var i = 0; i < inputRows.length; i++) {
+    var row = inputRows[i];
+    var descRow = row.nextElementSibling;
+    var desc = descRow && descRow.querySelector('.item-description') ? descRow.querySelector('.item-description').value : '';
+    var rate = row.querySelector('.item-rate') ? row.querySelector('.item-rate').value : '';
+    if (desc.trim() || rate.trim()) return true;
+  }
+  return false;
+}
+
+function updateAutosaveIndicator() {
+  var el = document.getElementById('autosave-indicator');
+  if (!el) return;
+  var html = '';
+  switch (autosaveState) {
+    case 'dirty':
+      html = '<div style="display:flex;align-items:center;gap:0.375rem;"><div style="width:6px;height:6px;border-radius:50%;background:#f59e0b;"></div><span style="font-size:0.7rem;color:#b45309;">Unsaved changes</span></div>';
+      break;
+    case 'saving':
+      html = '<div style="display:flex;align-items:center;gap:0.375rem;"><div style="width:12px;height:12px;border:2px solid var(--accent);border-top-color:transparent;border-radius:50%;animation:autosave-spin 0.6s linear infinite;"></div><span style="font-size:0.7rem;color:var(--accent);">Saving...</span></div>';
+      break;
+    case 'saved':
+      var ago = autosaveLastSaved ? Math.round((Date.now() - autosaveLastSaved) / 1000) : 0;
+      var timeStr = ago < 60 ? ago + 's ago' : Math.round(ago / 60) + 'm ago';
+      html = '<div style="display:flex;align-items:center;gap:0.375rem;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg><span style="font-size:0.7rem;color:var(--success);">Draft auto-saved</span><span style="font-size:0.6rem;color:var(--text-secondary);">' + timeStr + '</span></div>';
+      break;
+    case 'error':
+      html = '<div style="display:flex;align-items:center;gap:0.375rem;"><span style="font-size:0.7rem;color:var(--danger);">Save failed &mdash; will retry</span></div>';
+      break;
+    default:
+      html = '';
+  }
+  el.innerHTML = html;
+}
 
 async function renderInvoiceForm(editId = null) {
   const app = document.getElementById('app');
@@ -47,9 +149,12 @@ async function renderInvoiceForm(editId = null) {
     const currencySymbol = getCurrencySymbol(mergedSettings.currency);
     
     app.innerHTML = `
-    <div class="page-header">
-      <h1>${editId ? 'Edit Invoice' : 'New Invoice'}</h1>
-      <p>${editId ? 'Update invoice details' : 'Fill in the details below'}</p>
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div>
+        <h1>${editId ? 'Edit Invoice' : 'New Invoice'}</h1>
+        <p>${editId ? 'Update invoice details' : 'Fill in the details below'}</p>
+      </div>
+      <div id="autosave-indicator"></div>
     </div>
     
     <div class="form-layout">
@@ -204,7 +309,6 @@ async function renderInvoiceForm(editId = null) {
           
           <div class="btn-group">
             <button type="submit" class="btn btn-primary" id="btn-generate-pdf">${editId ? 'Update & Generate PDF' : 'Save & Generate PDF'}</button>
-            <button type="button" class="btn btn-secondary" onclick="saveDraft()" id="btn-save-draft">Save Draft <span style="font-size:0.7rem;opacity:0.7;">Ctrl+S</span></button>
             <button type="button" class="btn btn-secondary" onclick="saveAndDownloadVisualPDF()" title="PDF that looks exactly like the preview" id="btn-visual-pdf">Visual PDF</button>
             <a href="#/history" class="btn btn-secondary">Cancel</a>
           </div>
@@ -939,10 +1043,12 @@ function attachFormListeners() {
   form.addEventListener('input', () => {
     setFormDirty();
     debouncedUpdatePreview();
+    scheduleAutosave();
   });
   form.addEventListener('change', () => {
     setFormDirty();
     debouncedUpdatePreview();
+    scheduleAutosave();
   });
   
   document.querySelectorAll('#form-template-grid .template-option').forEach(el => {
@@ -1288,7 +1394,7 @@ function setupFormKeyboardShortcuts() {
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
       e.preventDefault();
-      saveDraft();
+      performAutosave();
     }
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
