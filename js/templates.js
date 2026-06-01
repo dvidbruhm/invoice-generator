@@ -100,6 +100,12 @@ const TEMPLATES = [
     name: 'Swiss',
     preview: 'Aa',
     style: 'swiss-style'
+  },
+  {
+    id: 'progiciels',
+    name: 'Progiciels',
+    preview: 'Aa',
+    style: 'progiciels-style'
   }
 ];
 
@@ -154,6 +160,8 @@ function getDefaultSettings() {
     labelDueDate: 'Due',
     labelTPS: 'TPS',
     labelTVQ: 'TVQ',
+    defaultClient: null,
+    lineItemPresets: [],
     dateFormat: 'default',
     datePosition: 'rotated',
     colDescription: 35,
