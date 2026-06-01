@@ -144,6 +144,7 @@ async function renderInvoiceForm(editId = null) {
             </div>
             <button type="button" class="btn btn-secondary btn-sm" onclick="addLineItem()">+ Add Item</button>
             <button type="button" class="btn btn-secondary btn-sm" onclick="openCSVImport()" style="margin-left: 0.5rem;">Import CSV</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="showReuseLastInvoice()" style="margin-left: 0.5rem;">&#8635; Reuse last invoice</button>
             <input type="file" id="csv-file-input" accept=".csv,.tsv,.txt" style="display:none;" onchange="handleCSVFileSelect(event)">
             
             <div class="totals sticky-totals" id="totals">
@@ -759,6 +760,125 @@ function applyCSVImport() {
   updateTotals();
   updateReorderButtonsState();
   showToast(`Imported ${newItems.length} line item${newItems.length !== 1 ? 's' : ''}!`, 'success');
+}
+
+async function showReuseLastInvoice() {
+  try {
+    var invoices = await getAllInvoices();
+    var lastByClient = {};
+    invoices.forEach(function(inv) {
+      var key = (inv.clientName || '').trim().toLowerCase();
+      if (!key) return;
+      if (!lastByClient[key] || new Date(inv.date || inv.createdAt) > new Date(lastByClient[key].date || lastByClient[key].createdAt)) {
+        lastByClient[key] = inv;
+      }
+    });
+
+    var entries = Object.values(lastByClient);
+    if (entries.length === 0) {
+      showToast('No previous invoices to reuse.', 'error');
+      return;
+    }
+
+    if (entries.length === 1) {
+      importLineItemsFromInvoice(entries[0]);
+      return;
+    }
+
+    var overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    overlay.id = 'reuse-overlay';
+    overlay.innerHTML =
+      '<div class="client-modal">' +
+      '<h3 style="font-size:1.125rem;font-weight:600;margin-bottom:0.5rem;">Import line items from:</h3>' +
+      '<div style="display:flex;flex-direction:column;gap:0.375rem;margin-top:0.5rem;">' +
+      entries.map(function(inv) {
+        return '<div class="reuse-client-option" data-invoice-id="' + escapeHTML(inv.id) + '" style="display:flex;align-items:center;gap:0.5rem;padding:0.5rem;border-radius:var(--radius);border:1px solid var(--border);cursor:pointer;transition:background 0.15s;">' +
+          '<span style="font-size:0.875rem;font-weight:500;">' + escapeHTML(inv.clientName) + '</span>' +
+          '<span style="font-size:0.75rem;color:var(--text-secondary);margin-left:auto;">' + escapeHTML(inv.number) + ' &middot; ' + (inv.lineItems ? inv.lineItems.length : 0) + ' items</span>' +
+          '</div>';
+      }).join('') +
+      '</div>' +
+      '<div class="confirm-actions" style="margin-top:1rem;"><button type="button" class="btn btn-secondary" id="reuse-cancel-btn">Cancel</button></div>' +
+      '</div>';
+
+    document.body.appendChild(overlay);
+    overlay.querySelector('#reuse-cancel-btn').addEventListener('click', function() { overlay.remove(); });
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+    overlay.querySelectorAll('.reuse-client-option').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var invId = el.dataset.invoiceId;
+        var inv = entries.find(function(i) { return i.id === invId; });
+        if (inv) importLineItemsFromInvoice(inv);
+        overlay.remove();
+      });
+      el.addEventListener('mouseenter', function() { el.style.background = 'var(--accent-light)'; });
+      el.addEventListener('mouseleave', function() { el.style.background = ''; });
+    });
+  } catch (err) {
+    showToast('Error loading invoices.', 'error');
+    console.error(err);
+  }
+}
+
+function importLineItemsFromInvoice(invoice) {
+  if (!invoice.lineItems || invoice.lineItems.length === 0) {
+    showToast('No line items in that invoice.', 'error');
+    return;
+  }
+
+  var items = invoice.lineItems.map(function(item) {
+    return {
+      date: '',
+      description: item.description || '',
+      rate: item.rate || '',
+      hours: ''
+    };
+  });
+
+  var tbody = document.getElementById('line-items-body');
+  var settings = formCachedSettings || getDefaultSettings();
+  var currencySymbol = getCurrencySymbol(settings.currency);
+
+  var firstDate = document.getElementById('invoice-date') ? document.getElementById('invoice-date').value : getLocalDateString();
+  items[0].date = firstDate;
+
+  items.forEach(function(item, i) {
+    if (i > 0) item.date = getNextWeekday(items[i - 1].date);
+
+    var index = tbody.querySelectorAll('tr.item-row-inputs').length;
+
+    var inputRow = document.createElement('tr');
+    inputRow.dataset.itemIndex = index;
+    inputRow.className = 'item-row-inputs';
+    inputRow.innerHTML =
+      '<td rowspan="2"><input type="date" class="item-date" value="' + escapeHTML(item.date) + '"></td>' +
+      '<td><div style="position:relative;">' +
+      '<span style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.8125rem;pointer-events:none;">' + currencySymbol + '</span>' +
+      '<input type="number" class="item-rate" value="' + escapeHTML(String(item.rate)) + '" placeholder="0.00" step="0.01" min="0" required style="padding-left:1.5rem;">' +
+      '</div></td>' +
+      '<td><input type="number" class="item-hours" value="" placeholder="0" step="0.5" min="0" required></td>' +
+      '<td class="amount-cell">' + formatCurrency(0, settings.currency) + '</td>' +
+      '<td rowspan="2">' +
+      '<div style="display:flex;gap:0.25rem;justify-content:flex-end;">' +
+      '<button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" aria-label="Move item up">&#8593;</button>' +
+      '<button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" aria-label="Move item down">&#8595;</button>' +
+      '<button type="button" class="remove-btn" onclick="removeLineItem(this)" aria-label="Remove item">&times;</button>' +
+      '</div></td>';
+
+    var descRow = document.createElement('tr');
+    descRow.dataset.itemIndex = index;
+    descRow.className = 'item-row-desc';
+    descRow.innerHTML = '<td colspan="3"><textarea class="item-description" placeholder="Description of work" required rows="1">' + escapeHTML(item.description) + '</textarea></td>';
+
+    tbody.appendChild(inputRow);
+    tbody.appendChild(descRow);
+  });
+
+  updateReorderButtonsState();
+  updateTotals();
+  showToast('Imported ' + items.length + ' line item' + (items.length !== 1 ? 's' : '') + ' from ' + escapeHTML(invoice.clientName) + '!', 'success');
 }
 
 function attachLineItemListeners() {
