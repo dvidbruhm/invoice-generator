@@ -211,3 +211,14 @@ function hexToRgba(hex, alpha) {
   var b = parseInt(hex.substring(4, 6), 16);
   return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
 }
+
+function parsePaymentTerms(terms) {
+  if (!terms) return 30;
+  var lower = terms.toLowerCase().trim();
+  if (lower === 'due on receipt' || lower === 'due upon receipt' || lower === 'cod') return 0;
+  var match = lower.match(/net\s+(\d+)/);
+  if (match) return parseInt(match[1], 10);
+  var numMatch = lower.match(/(\d+)/);
+  if (numMatch) return parseInt(numMatch[1], 10);
+  return 30;
+}
