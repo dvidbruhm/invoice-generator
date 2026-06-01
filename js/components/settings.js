@@ -32,6 +32,15 @@ async function renderSettings() {
       </details>
 
       <details class="card collapsible" open>
+        <summary class="card-title collapsible-toggle">Line Item Presets</summary>
+        <div class="collapsible-content">
+          <p style="font-size:0.8125rem;color:var(--text-secondary);margin-bottom:1rem;">Save frequently used line items for quick access when creating invoices.</p>
+          <div id="presets-list"></div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="openPresetEditor()" style="margin-top:1rem;">+ Add Preset</button>
+        </div>
+      </details>
+
+      <details class="card collapsible" open>
         <summary class="card-title collapsible-toggle">Your Information</summary>
         <div class="collapsible-content">
           <div class="form-grid">
@@ -333,6 +342,9 @@ async function renderSettings() {
 
   loadClients(merged);
 
+  if (!formCachedSettings) formCachedSettings = merged;
+  renderPresetsList(merged.lineItemPresets || []);
+
   renderNav();
   } catch (err) {
     console.error('Error rendering settings:', err);
@@ -403,6 +415,149 @@ async function saveSettingsForm() {
     showToast('Error saving settings.', 'error');
     console.error(err);
   }
+}
+
+function renderPresetsList(presets) {
+  var listEl = document.getElementById('presets-list');
+  if (!listEl) return;
+  var settings = formCachedSettings || getDefaultSettings();
+
+  if (!presets || presets.length === 0) {
+    listEl.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:1rem;">No presets yet. Add your first preset to get started!</div>';
+    return;
+  }
+
+  listEl.innerHTML = '<div class="presets-grid">' + presets.map(function(p, i) {
+    return '<div class="preset-card" data-preset-id="' + escapeHTML(p.id) + '">' +
+      '<div class="preset-card-header">' +
+      '<strong>' + escapeHTML(p.name) + '</strong>' +
+      '<span style="color:var(--text-secondary);font-size:0.875rem;margin-left:0.5rem;">' + formatCurrency(p.rate, settings.currency) + '/hr</span>' +
+      '</div>' +
+      (p.description ? '<div style="font-size:0.8125rem;color:var(--text-secondary);">' + escapeHTML(p.description) + '</div>' : '') +
+      (p.hours ? '<div style="font-size:0.75rem;color:var(--text-secondary);">Default hours: ' + escapeHTML(String(p.hours)) + '</div>' : '') +
+      '<div class="preset-card-actions">' +
+      '<button type="button" class="btn btn-secondary btn-sm" onclick="openPresetEditor(\'' + escapeHTML(p.id) + '\')">Edit</button>' +
+      (i > 0 ? '<button type="button" class="btn btn-secondary btn-sm" onclick="movePreset(\'' + escapeHTML(p.id) + '\', -1)">&uarr;</button>' : '') +
+      (i < presets.length - 1 ? '<button type="button" class="btn btn-secondary btn-sm" onclick="movePreset(\'' + escapeHTML(p.id) + '\', 1)">&darr;</button>' : '') +
+      '<button type="button" class="btn btn-danger btn-sm" onclick="deletePreset(\'' + escapeHTML(p.id) + '\')">Delete</button>' +
+      '</div></div>';
+  }).join('') + '</div>';
+}
+
+function openPresetEditor(presetId) {
+  var presets = formCachedSettings.lineItemPresets || [];
+  var preset = presetId ? presets.find(function(p) { return p.id === presetId; }) : null;
+
+  var overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.id = 'preset-editor-overlay';
+  overlay.innerHTML =
+    '<div class="client-modal">' +
+    '<h3 style="font-size:1.125rem;font-weight:600;margin-bottom:0.5rem;">' + (presetId ? 'Edit Preset' : 'Add New Preset') + '</h3>' +
+    '<form id="preset-form">' +
+    '<div class="form-group">' +
+    '<label for="preset-name-input">Name *</label>' +
+    '<input type="text" id="preset-name-input" required placeholder="e.g. Software Dev">' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label for="preset-desc-input">Description</label>' +
+    '<input type="text" id="preset-desc-input" placeholder="e.g. Software development services">' +
+    '</div>' +
+    '<div class="form-grid">' +
+    '<div class="form-group">' +
+    '<label for="preset-rate-input">Rate *</label>' +
+    '<input type="number" id="preset-rate-input" required placeholder="85" step="0.01" min="0">' +
+    '</div>' +
+    '<div class="form-group">' +
+    '<label for="preset-hours-input">Default Hours</label>' +
+    '<input type="number" id="preset-hours-input" placeholder="8" step="0.5" min="0">' +
+    '</div>' +
+    '</div>' +
+    '<div class="confirm-actions" style="margin-top:1.25rem;">' +
+    '<button type="button" class="btn btn-secondary" id="preset-cancel-btn">Cancel</button>' +
+    '<button type="submit" class="btn btn-primary">' + (presetId ? 'Update' : 'Add') + ' Preset</button>' +
+    '</div>' +
+    '</form></div>';
+
+  document.body.appendChild(overlay);
+
+  if (preset) {
+    document.getElementById('preset-name-input').value = preset.name || '';
+    document.getElementById('preset-desc-input').value = preset.description || '';
+    document.getElementById('preset-rate-input').value = preset.rate || '';
+    document.getElementById('preset-hours-input').value = preset.hours || '';
+  }
+
+  var form = overlay.querySelector('#preset-form');
+  var cancelBtn = overlay.querySelector('#preset-cancel-btn');
+  cancelBtn.addEventListener('click', function() { overlay.remove(); });
+  overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var name = document.getElementById('preset-name-input').value.trim();
+    var desc = document.getElementById('preset-desc-input').value.trim();
+    var rate = parseFloat(document.getElementById('preset-rate-input').value);
+    var hours = document.getElementById('preset-hours-input').value ? parseFloat(document.getElementById('preset-hours-input').value) : undefined;
+
+    if (!name || isNaN(rate)) {
+      showToast('Name and rate are required.', 'error');
+      return;
+    }
+
+    var presets = formCachedSettings.lineItemPresets || [];
+    if (presetId) {
+      var idx = presets.findIndex(function(p) { return p.id === presetId; });
+      if (idx >= 0) {
+        presets[idx] = { id: presetId, name: name, description: desc, rate: rate, hours: hours };
+      }
+    } else {
+      presets.push({ id: 'p' + Date.now(), name: name, description: desc, rate: rate, hours: hours });
+    }
+
+    try {
+      await saveSetting('lineItemPresets', presets);
+      formCachedSettings.lineItemPresets = presets;
+      showToast(presetId ? 'Preset updated!' : 'Preset added!', 'success');
+      overlay.remove();
+      renderPresetsList(presets);
+    } catch (err) {
+      showToast('Error saving preset.', 'error');
+    }
+  });
+}
+
+async function movePreset(presetId, direction) {
+  var presets = formCachedSettings.lineItemPresets || [];
+  var idx = presets.findIndex(function(p) { return p.id === presetId; });
+  if (idx < 0) return;
+  var newIdx = idx + direction;
+  if (newIdx < 0 || newIdx >= presets.length) return;
+  var temp = presets[newIdx];
+  presets[newIdx] = presets[idx];
+  presets[idx] = temp;
+  try {
+    await saveSetting('lineItemPresets', presets);
+    formCachedSettings.lineItemPresets = presets;
+    renderPresetsList(presets);
+  } catch (err) {
+    showToast('Error reordering preset.', 'error');
+  }
+}
+
+async function deletePreset(presetId) {
+  showConfirmModal('Delete this preset? This action cannot be undone.', async function() {
+    var presets = formCachedSettings.lineItemPresets || [];
+    presets = presets.filter(function(p) { return p.id !== presetId; });
+    try {
+      await saveSetting('lineItemPresets', presets);
+      formCachedSettings.lineItemPresets = presets;
+      showToast('Preset deleted.', 'success');
+      renderPresetsList(presets);
+    } catch (err) {
+      showToast('Error deleting preset.', 'error');
+    }
+  });
 }
 
 function handleLogoUpload(e) {
