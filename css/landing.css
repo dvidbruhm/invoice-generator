@@ -70,14 +70,14 @@ body {
   gap: 1.5rem;
 }
 
-.landing-nav-links a {
+.landing-nav-links a:not(.btn-primary):not(.btn-secondary) {
   font-size: 0.875rem;
   color: var(--text-secondary);
   text-decoration: none;
   transition: color var(--transition);
 }
 
-.landing-nav-links a:hover {
+.landing-nav-links a:not(.btn-primary):not(.btn-secondary):hover {
   color: var(--text);
 }
 
