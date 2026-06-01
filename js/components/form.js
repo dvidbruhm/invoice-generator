@@ -153,28 +153,41 @@ async function renderInvoiceForm(editId = null) {
           
           <div class="card">
             <div class="card-title">Template & Color</div>
-            <div class="template-grid" id="form-template-grid">
-              ${TEMPLATES.map(t => `
-                <div class="template-option ${t.id === (invoice?.template || mergedSettings.template) ? 'selected' : ''}" data-template="${t.id}">
-                  <div class="template-preview-card">
-                    ${getTemplatePreviewHTML(t.id, invoice?.accentColor || mergedSettings.accentColor)}
-                  </div>
-                  <div class="template-name">${escapeHTML(t.name)}</div>
-                </div>
-              `).join('')}
+            <div class="template-collapsed" id="template-collapsed" onclick="toggleTemplatePopover()">
+              <div class="template-collapsed-thumb" id="template-collapsed-thumb">
+                ${getTemplatePreviewHTML(invoice?.template || mergedSettings.template, invoice?.accentColor || mergedSettings.accentColor)}
+              </div>
+              <div class="template-collapsed-info">
+                <div class="template-collapsed-name" id="template-collapsed-name">${escapeHTML(TEMPLATES.find(t => t.id === (invoice?.template || mergedSettings.template))?.name || 'Modern')}</div>
+                <div class="template-collapsed-hint">Click to change template & color</div>
+              </div>
+              <div class="template-collapsed-color" id="template-collapsed-color" style="background:${escapeHTML(invoice?.accentColor || mergedSettings.accentColor)};"></div>
+              <svg class="template-collapsed-chevron" width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4 2l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
             </div>
-            <div style="margin-top:1rem;">
-              <label style="font-size:0.8125rem;font-weight:500;color:var(--text-secondary);display:block;margin-bottom:0.5rem;">Accent Color</label>
-              <div class="color-grid" id="form-color-grid">
-                ${ACCENT_COLORS.map(c => `
-                  <div class="color-option ${c.value === (invoice?.accentColor || mergedSettings.accentColor) ? 'selected' : ''}" 
-                       data-color="${c.value}" 
-                       style="background: ${c.value};" 
-                       title="${escapeHTML(c.name)}"></div>
+            <div class="template-popover" id="template-popover" style="display:none;">
+              <div class="template-grid" id="form-template-grid">
+                ${TEMPLATES.map(t => `
+                  <div class="template-option ${t.id === (invoice?.template || mergedSettings.template) ? 'selected' : ''}" data-template="${t.id}">
+                    <div class="template-preview-card">
+                      ${getTemplatePreviewHTML(t.id, invoice?.accentColor || mergedSettings.accentColor)}
+                    </div>
+                    <div class="template-name">${escapeHTML(t.name)}</div>
+                  </div>
                 `).join('')}
-                <div class="color-option-custom ${ACCENT_COLORS.every(c => c.value !== (invoice?.accentColor || mergedSettings.accentColor)) ? 'selected' : ''}">
-                  <input type="color" id="form-custom-color" value="${escapeHTML(invoice?.accentColor || mergedSettings.accentColor)}" title="Choose custom color">
-                  <span>Custom</span>
+              </div>
+              <div style="margin-top:1rem;">
+                <label style="font-size:0.8125rem;font-weight:500;color:var(--text-secondary);display:block;margin-bottom:0.5rem;">Accent Color</label>
+                <div class="color-grid" id="form-color-grid">
+                  ${ACCENT_COLORS.map(c => `
+                    <div class="color-option ${c.value === (invoice?.accentColor || mergedSettings.accentColor) ? 'selected' : ''}" 
+                         data-color="${c.value}" 
+                         style="background: ${c.value};" 
+                         title="${escapeHTML(c.name)}"></div>
+                  `).join('')}
+                  <div class="color-option-custom ${ACCENT_COLORS.every(c => c.value !== (invoice?.accentColor || mergedSettings.accentColor)) ? 'selected' : ''}">
+                    <input type="color" id="form-custom-color" value="${escapeHTML(invoice?.accentColor || mergedSettings.accentColor)}" title="Choose custom color">
+                    <span>Custom</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -774,6 +787,30 @@ function attachLineItemListeners() {
   });
 }
 
+function toggleTemplatePopover() {
+  var popover = document.getElementById('template-popover');
+  if (!popover) return;
+  if (popover.style.display === 'none') {
+    popover.style.display = 'block';
+    setTimeout(function() {
+      document.addEventListener('click', closeTemplatePopoverOutside);
+    }, 0);
+  } else {
+    popover.style.display = 'none';
+    document.removeEventListener('click', closeTemplatePopoverOutside);
+  }
+}
+
+function closeTemplatePopoverOutside(e) {
+  var popover = document.getElementById('template-popover');
+  var collapsed = document.getElementById('template-collapsed');
+  if (!popover || !collapsed) return;
+  if (!popover.contains(e.target) && !collapsed.contains(e.target)) {
+    popover.style.display = 'none';
+    document.removeEventListener('click', closeTemplatePopoverOutside);
+  }
+}
+
 function attachFormListeners() {
   attachLineItemListeners();
   
@@ -795,6 +832,14 @@ function attachFormListeners() {
       document.getElementById('invoice-template').value = el.dataset.template;
       setFormDirty();
       debouncedUpdatePreview();
+      var thumbEl = document.getElementById('template-collapsed-thumb');
+      var nameEl = document.getElementById('template-collapsed-name');
+      var accent = document.getElementById('invoice-accent-color').value;
+      if (thumbEl) thumbEl.innerHTML = getTemplatePreviewHTML(el.dataset.template, accent);
+      if (nameEl) {
+        var tpl = TEMPLATES.find(function(t) { return t.id === el.dataset.template; });
+        nameEl.textContent = tpl ? tpl.name : el.dataset.template;
+      }
     });
   });
   
@@ -806,6 +851,11 @@ function attachFormListeners() {
       document.getElementById('invoice-accent-color').value = el.dataset.color;
       setFormDirty();
       debouncedUpdatePreview();
+      var colorDot = document.getElementById('template-collapsed-color');
+      if (colorDot) colorDot.style.background = el.dataset.color;
+      var thumbEl = document.getElementById('template-collapsed-thumb');
+      var tplVal = document.getElementById('invoice-template').value;
+      if (thumbEl) thumbEl.innerHTML = getTemplatePreviewHTML(tplVal, el.dataset.color);
     });
   });
   
@@ -817,6 +867,11 @@ function attachFormListeners() {
       document.getElementById('invoice-accent-color').value = e.target.value;
       setFormDirty();
       debouncedUpdatePreview();
+      var colorDot = document.getElementById('template-collapsed-color');
+      if (colorDot) colorDot.style.background = e.target.value;
+      var thumbEl = document.getElementById('template-collapsed-thumb');
+      var tplVal = document.getElementById('invoice-template').value;
+      if (thumbEl) thumbEl.innerHTML = getTemplatePreviewHTML(tplVal, e.target.value);
     });
   }
 }
