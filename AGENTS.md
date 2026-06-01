@@ -10,3 +10,4 @@
 - Use `formatCurrency(amount, currency)` from utils.js for all money formatting
 - Test changes in the browser after making them
 - After each prompt that modifies files, create a git commit with a concise message describing the changes
+- After each feature implementation or bug fix, restart the Docker server with `docker compose up --build -d` to apply changes before testing
