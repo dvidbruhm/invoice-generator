@@ -37,7 +37,7 @@ async function renderInvoiceForm(editId = null) {
     const nextNum = editId ? { num: 0 } : await getNextInvoiceNumber();
     const formattedNum = editId ? invoice.number : await formatInvoiceNumber(nextNum.num);
     const today = getLocalDateString();
-    const dueDate = getLocalDateString(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
+    const dueDate = getLocalDateString(new Date(Date.now() + parsePaymentTerms(mergedSettings.paymentTerms) * 24 * 60 * 60 * 1000));
     
     const lineItems = (invoice ? invoice.lineItems : [{ description: '', rate: '', hours: '' }]).map((item, i) => ({
       ...item,
