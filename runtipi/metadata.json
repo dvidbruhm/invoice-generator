@@ -1,0 +1,4 @@
+metadata:
+  name: Invoice Generator
+  description: Self-hosted invoice generator with live preview, PDF export, and 17 customizable templates
+  version: 1.0.0
