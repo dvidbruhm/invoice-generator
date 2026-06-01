@@ -114,7 +114,18 @@ async function renderInvoiceForm(editId = null) {
           </div>
 
           <div class="card">
-            <div class="card-title">Line Items</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <div class="card-title" style="margin-bottom:0;">Line Items</div>
+              <a href="#/settings" class="preset-manage-link">Manage Presets</a>
+            </div>
+            ${mergedSettings.lineItemPresets && mergedSettings.lineItemPresets.length > 0 ? `
+            <div class="preset-chips">
+              ${mergedSettings.lineItemPresets.map(p => `
+                <button type="button" class="preset-chip" onclick="addPresetLineItem('${escapeHTML(p.id)}')" title="${escapeHTML(p.description || p.name)}">${escapeHTML(p.name)} &mdash; ${formatCurrency(p.rate, mergedSettings.currency)}/hr</button>
+              `).join('')}
+              <button type="button" class="preset-chip preset-chip-add" onclick="showInlinePresetForm()">+ Add preset...</button>
+            </div>
+            ` : ''}
             <div class="table-wrapper">
               <table class="line-items" id="line-items-table">
                 <thead>
@@ -356,6 +367,128 @@ function addLineItem() {
 
   const descInput = descRow.querySelector('.item-description');
   if (descInput) descInput.focus();
+}
+
+function addPresetLineItem(presetId) {
+  var presets = (formCachedSettings && formCachedSettings.lineItemPresets) || [];
+  var preset = presets.find(function(p) { return p.id === presetId; });
+  if (!preset) return;
+
+  var tbody = document.getElementById('line-items-body');
+  var settings = formCachedSettings || getDefaultSettings();
+  var currencySymbol = getCurrencySymbol(settings.currency);
+  var inputRows = tbody.querySelectorAll('tr.item-row-inputs');
+  var index = inputRows.length;
+  var lastInputRow = inputRows[inputRows.length - 1];
+  var defaultDate = lastInputRow
+    ? getNextWeekday(lastInputRow.querySelector('.item-date') ? lastInputRow.querySelector('.item-date').value : '')
+    : (document.getElementById('invoice-date') ? document.getElementById('invoice-date').value : getLocalDateString());
+
+  var rate = preset.rate || '';
+  var hours = preset.hours || '';
+  var amount = (parseFloat(rate) || 0) * (parseFloat(hours) || 0);
+
+  var inputRow = document.createElement('tr');
+  inputRow.dataset.itemIndex = index;
+  inputRow.className = 'item-row-inputs';
+  inputRow.innerHTML =
+    '<td rowspan="2"><input type="date" class="item-date" value="' + escapeHTML(defaultDate) + '"></td>' +
+    '<td><div style="position:relative;">' +
+    '<span style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.8125rem;pointer-events:none;">' + currencySymbol + '</span>' +
+    '<input type="number" class="item-rate" value="' + escapeHTML(String(rate)) + '" placeholder="0.00" step="0.01" min="0" required style="padding-left:1.5rem;">' +
+    '</div></td>' +
+    '<td><input type="number" class="item-hours" value="' + escapeHTML(String(hours)) + '" placeholder="0" step="0.5" min="0" required></td>' +
+    '<td class="amount-cell">' + formatCurrency(amount, settings.currency) + '</td>' +
+    '<td rowspan="2">' +
+    '<div style="display:flex;gap:0.25rem;justify-content:flex-end;">' +
+    '<button type="button" class="reorder-btn reorder-up" onclick="moveLineItem(this, -1)" title="Move up" aria-label="Move item up">&#8593;</button>' +
+    '<button type="button" class="reorder-btn reorder-down" onclick="moveLineItem(this, 1)" title="Move down" aria-label="Move item down">&#8595;</button>' +
+    '<button type="button" class="remove-btn" onclick="removeLineItem(this)" aria-label="Remove item">&times;</button>' +
+    '</div></td>';
+
+  var descRow = document.createElement('tr');
+  descRow.dataset.itemIndex = index;
+  descRow.className = 'item-row-desc';
+  descRow.innerHTML = '<td colspan="3"><textarea class="item-description" placeholder="Description of work" required rows="1">' + escapeHTML(preset.description || '') + '</textarea></td>';
+
+  tbody.appendChild(inputRow);
+  tbody.appendChild(descRow);
+  updateReorderButtonsState();
+  updateTotals();
+
+  var hoursInput = inputRow.querySelector('.item-hours');
+  if (hoursInput && !hours) hoursInput.focus();
+}
+
+function showInlinePresetForm() {
+  var existing = document.getElementById('inline-preset-form');
+  if (existing) { document.getElementById('inline-preset-name').focus(); return; }
+
+  var container = document.createElement('div');
+  container.id = 'inline-preset-form';
+  container.className = 'inline-preset-form';
+  container.innerHTML =
+    '<div class="inline-preset-form-row">' +
+    '<input type="text" id="inline-preset-name" placeholder="Name (e.g. Dev)" required>' +
+    '<input type="text" id="inline-preset-desc" placeholder="Description">' +
+    '<div style="position:relative;">' +
+    '<span style="position:absolute;left:0.5rem;top:50%;transform:translateY(-50%);color:var(--text-secondary);font-size:0.8125rem;pointer-events:none;">$</span>' +
+    '<input type="number" id="inline-preset-rate" placeholder="Rate" step="0.01" min="0" required style="padding-left:1.25rem;">' +
+    '</div>' +
+    '<input type="number" id="inline-preset-hours" placeholder="Hrs (opt)" step="0.5" min="0">' +
+    '<button type="button" class="btn btn-primary btn-sm" onclick="saveInlinePreset()">Save</button>' +
+    '<button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById(\'inline-preset-form\').remove()">Cancel</button>' +
+    '</div>';
+
+  var chipsBar = document.querySelector('.preset-chips');
+  if (chipsBar) {
+    chipsBar.after(container);
+  }
+  document.getElementById('inline-preset-name').focus();
+}
+
+async function saveInlinePreset() {
+  var name = document.getElementById('inline-preset-name').value.trim();
+  var desc = document.getElementById('inline-preset-desc').value.trim();
+  var rate = document.getElementById('inline-preset-rate').value;
+  var hours = document.getElementById('inline-preset-hours').value;
+
+  if (!name || !rate) {
+    showToast('Name and rate are required.', 'error');
+    return;
+  }
+
+  var presets = (formCachedSettings && formCachedSettings.lineItemPresets) || [];
+  var newPreset = {
+    id: 'p' + Date.now(),
+    name: name,
+    description: desc,
+    rate: parseFloat(rate),
+    hours: hours ? parseFloat(hours) : undefined
+  };
+  presets.push(newPreset);
+
+  if (formCachedSettings) formCachedSettings.lineItemPresets = presets;
+  await saveSetting('lineItemPresets', presets);
+
+  var form = document.getElementById('inline-preset-form');
+  if (form) form.remove();
+  showToast('Preset "' + escapeHTML(name) + '" saved!', 'success');
+
+  addPresetLineItem(newPreset.id);
+
+  updatePresetChips();
+}
+
+function updatePresetChips() {
+  var settings = formCachedSettings || getDefaultSettings();
+  var presets = settings.lineItemPresets || [];
+  var chipsBar = document.querySelector('.preset-chips');
+  if (!chipsBar) return;
+
+  chipsBar.innerHTML = presets.map(function(p) {
+    return '<button type="button" class="preset-chip" onclick="addPresetLineItem(\'' + escapeHTML(p.id) + '\')" title="' + escapeHTML(p.description || p.name) + '">' + escapeHTML(p.name) + ' &mdash; ' + formatCurrency(p.rate, settings.currency) + '/hr</button>';
+  }).join('') + '<button type="button" class="preset-chip preset-chip-add" onclick="showInlinePresetForm()">+ Add preset...</button>';
 }
 
 function removeLineItem(btn) {
