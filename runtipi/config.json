@@ -16,14 +16,6 @@
   "form_fields": [
     {
       "type": "password",
-      "label": "Database Password",
-      "max": 128,
-      "min": 8,
-      "required": true,
-      "env_variable": "INVOICE_GENERATOR_DB_PASSWORD"
-    },
-    {
-      "type": "password",
       "label": "JWT Secret",
       "max": 256,
       "min": 16,

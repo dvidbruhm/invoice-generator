@@ -6,12 +6,11 @@ services:
     ports:
       - ${APP_PORT}:3000
     environment:
-      - DATABASE_URL=postgres://postgres:${INVOICE_GENERATOR_DB_PASSWORD}@invoice-generator-db:5432/invoices
+      - DATABASE_URL=postgres://postgres@localhost:5432/invoices
       - JWT_SECRET=${INVOICE_GENERATOR_JWT_SECRET}
       - PORT=3000
-    depends_on:
-      invoice-generator-db:
-        condition: service_healthy
+    volumes:
+      - ${APP_DATA_DIR}/db:/var/lib/postgresql/data
     networks:
       - tipi_main_network
     labels:
@@ -35,25 +34,6 @@ services:
       traefik.http.routers.invoice-generator-local.service: invoice-generator
       traefik.http.routers.invoice-generator-local.tls: true
       runtipi.managed: true
-
-  invoice-generator-db:
-    image: postgres:16-alpine
-    container_name: invoice-generator-db
-    restart: unless-stopped
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${INVOICE_GENERATOR_DB_PASSWORD}
-      - POSTGRES_DB=invoices
-    volumes:
-      - ${APP_DATA_DIR}/db:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d invoices"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-    networks:
-      - tipi_main_network
 
 networks:
   tipi_main_network:
