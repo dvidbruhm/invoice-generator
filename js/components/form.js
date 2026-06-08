@@ -141,7 +141,7 @@ async function renderInvoiceForm(editId = null) {
     const today = getLocalDateString();
     const dueDate = getLocalDateString(new Date(Date.now() + parsePaymentTerms(mergedSettings.paymentTerms) * 24 * 60 * 60 * 1000));
     
-    const lineItems = (invoice ? invoice.lineItems : [{ description: '', rate: '', hours: '' }]).map((item, i) => ({
+    const lineItems = (invoice ? invoice.lineItems : []).map((item, i) => ({
       ...item,
       date: item.date || (i === 0 ? (invoice?.date || today) : '')
     }));
@@ -496,15 +496,43 @@ function addPresetLineItem(presetId) {
   var settings = formCachedSettings || getDefaultSettings();
   var currencySymbol = getCurrencySymbol(settings.currency);
   var inputRows = tbody.querySelectorAll('tr.item-row-inputs');
-  var index = inputRows.length;
-  var lastInputRow = inputRows[inputRows.length - 1];
-  var defaultDate = lastInputRow
-    ? getNextWeekday(lastInputRow.querySelector('.item-date') ? lastInputRow.querySelector('.item-date').value : '')
-    : (document.getElementById('invoice-date') ? document.getElementById('invoice-date').value : getLocalDateString());
 
   var rate = preset.rate || '';
   var hours = preset.hours || '';
   var amount = (parseFloat(rate) || 0) * (parseFloat(hours) || 0);
+  var defaultDate = inputRows.length > 0
+    ? getNextWeekday(inputRows[inputRows.length - 1].querySelector('.item-date') ? inputRows[inputRows.length - 1].querySelector('.item-date').value : '')
+    : (document.getElementById('invoice-date') ? document.getElementById('invoice-date').value : getLocalDateString());
+
+  var emptyRow = null;
+  var emptyDescRow = null;
+  for (var i = 0; i < inputRows.length; i++) {
+    var row = inputRows[i];
+    var r = row.querySelector('.item-rate');
+    var h = row.querySelector('.item-hours');
+    var d = row.querySelector('.item-date');
+    if (r && h && d && !r.value && !h.value) {
+      emptyRow = row;
+      emptyDescRow = row.nextElementSibling;
+      if (emptyDescRow && !emptyDescRow.classList.contains('item-row-desc')) emptyDescRow = null;
+      break;
+    }
+  }
+
+  if (emptyRow) {
+    emptyRow.querySelector('.item-date').value = escapeHTML(defaultDate);
+    emptyRow.querySelector('.item-rate').value = escapeHTML(String(rate));
+    emptyRow.querySelector('.item-hours').value = escapeHTML(String(hours));
+    emptyRow.querySelector('.amount-cell').textContent = formatCurrency(amount, settings.currency);
+    if (emptyDescRow) {
+      var descTextarea = emptyDescRow.querySelector('.item-description');
+      if (descTextarea) descTextarea.value = preset.description || '';
+    }
+    updateTotals();
+    return;
+  }
+
+  var index = inputRows.length;
 
   var inputRow = document.createElement('tr');
   inputRow.dataset.itemIndex = index;
