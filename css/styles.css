@@ -554,7 +554,7 @@ main {
 }
 
 .line-items textarea.item-description {
-  min-height: 2.5rem;
+  min-height: 5rem;
   field-sizing: content;
 }
 
