@@ -16,6 +16,7 @@ COPY runtipi/start.sh /start.sh
 RUN chmod +x /start.sh
 
 RUN mkdir -p /var/log && touch /var/log/postgresql.log \
+    && chown postgres:postgres /var/log/postgresql.log \
     && mkdir -p /run/postgresql && chown postgres:postgres /run/postgresql
 
 ENV PORT=3000
