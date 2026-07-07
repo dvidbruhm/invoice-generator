@@ -1,5 +1,4 @@
 {
-  "$schema": "https://raw.githubusercontent.com/runtipi/runtipi-appstore/refs/heads/master/app-info-schema.json",
   "name": "Invoice Generator",
   "available": true,
   "exposable": true,
@@ -15,10 +14,9 @@
   "source": "https://github.com/dvidbruhm/invoice-generator",
   "form_fields": [
     {
-      "type": "password",
+      "type": "random",
       "label": "JWT Secret",
-      "max": 256,
-      "min": 16,
+      "min": 32,
       "required": true,
       "env_variable": "INVOICE_GENERATOR_JWT_SECRET"
     }

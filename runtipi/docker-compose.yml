@@ -1,40 +1,15 @@
 services:
   invoice-generator:
     image: ghcr.io/dvidbruhm/invoice-generator:latest
-    container_name: invoice-generator
-    restart: unless-stopped
-    ports:
-      - ${APP_PORT}:3000
     environment:
       - DATABASE_URL=postgres://postgres@localhost:5432/invoices
       - JWT_SECRET=${INVOICE_GENERATOR_JWT_SECRET}
       - PORT=3000
     volumes:
       - ${APP_DATA_DIR}/db:/var/lib/postgresql/data
-    networks:
-      - tipi_main_network
-    labels:
-      traefik.enable: true
-      traefik.http.middlewares.invoice-generator-web-redirect.redirectscheme.scheme: https
-      traefik.http.services.invoice-generator.loadbalancer.server.port: 3000
-      traefik.http.routers.invoice-generator-insecure.rule: Host(`${APP_DOMAIN}`)
-      traefik.http.routers.invoice-generator-insecure.entrypoints: web
-      traefik.http.routers.invoice-generator-insecure.service: invoice-generator
-      traefik.http.routers.invoice-generator-insecure.middlewares: invoice-generator-web-redirect
-      traefik.http.routers.invoice-generator.rule: Host(`${APP_DOMAIN}`)
-      traefik.http.routers.invoice-generator.entrypoints: websecure
-      traefik.http.routers.invoice-generator.service: invoice-generator
-      traefik.http.routers.invoice-generator.tls.certresolver: myresolver
-      traefik.http.routers.invoice-generator-local-insecure.rule: Host(`invoice-generator.${LOCAL_DOMAIN}`)
-      traefik.http.routers.invoice-generator-local-insecure.entrypoints: web
-      traefik.http.routers.invoice-generator-local-insecure.service: invoice-generator
-      traefik.http.routers.invoice-generator-local-insecure.middlewares: invoice-generator-web-redirect
-      traefik.http.routers.invoice-generator-local.rule: Host(`invoice-generator.${LOCAL_DOMAIN}`)
-      traefik.http.routers.invoice-generator-local.entrypoints: websecure
-      traefik.http.routers.invoice-generator-local.service: invoice-generator
-      traefik.http.routers.invoice-generator-local.tls: true
-      runtipi.managed: true
+    x-runtipi:
+      is_main: true
+      internal_port: 3000
 
-networks:
-  tipi_main_network:
-    external: true
+x-runtipi:
+  schema_version: 2
