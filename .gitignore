@@ -3,4 +3,5 @@ node_modules
 *.log
 .superpowers/
 docs/homelab-complete-documentation.md
+docs/homelab-wiki/
 invoices_backup.sql
