@@ -1,10 +1,10 @@
 function calculateTotals(lineItems, settings) {
   const subtotal = lineItems.reduce((sum, item) => {
-    return sum + (parseFloat(item.rate) * parseFloat(item.hours));
+    return sum + ((parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0));
   }, 0);
   
   const tps = settings.taxTPS ? subtotal * settings.tpsRate : 0;
-  const tvq = settings.taxTVQ ? (subtotal + tps) * settings.tvqRate : 0;
+  const tvq = settings.taxTVQ ? subtotal * settings.tvqRate : 0;
   const total = subtotal + tps + tvq;
   
   return { subtotal, tps, tvq, total };

@@ -411,10 +411,7 @@ function renderLineItemRow(item, index, settings, currencySymbol, totalItems) {
 }
 
 function renderTotalsHTML(lineItems, settings) {
-  const subtotal = lineItems.reduce((sum, item) => sum + ((parseFloat(item.rate) || 0) * (parseFloat(item.hours) || 0)), 0);
-  const tps = settings.taxTPS ? subtotal * settings.tpsRate : 0;
-  const tvq = settings.taxTVQ ? (subtotal + tps) * settings.tvqRate : 0;
-  const total = subtotal + tps + tvq;
+  const { subtotal, tps, tvq, total } = calculateTotals(lineItems, settings);
   
   return `
     <div class="totals-row">

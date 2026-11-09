@@ -197,7 +197,7 @@ Blue `#2563eb`, Teal `#0d9488`, Green `#16a34a`, Emerald `#059669`, Purple `#7c3
 
 | Function | Signature | Description |
 |---|---|---|
-| `calculateTotals` | `(lineItems, settings)` | Returns `{ subtotal, tps, tvq, total }`. Subtotal = sum(rate × hours). TPS if `settings.taxTPS`. TVQ on `(subtotal + tps)` if `settings.taxTVQ`. |
+| `calculateTotals` | `(lineItems, settings)` | Returns `{ subtotal, tps, tvq, total }`. Subtotal = sum(rate × hours). TPS on `subtotal` if `settings.taxTPS`. TVQ on `subtotal` if `settings.taxTVQ` — both taxes apply to the base subtotal only, never compounding. |
 | `hexToRgb` | `(hex)` | Parses `#RRGGBB` → `{ r, g, b }`. Falls back to `{ r:0, g:0, b:0 }`. |
 | `addLogo` | `(doc, logo, x, y, width, height)` | Adds base64 logo image (PNG/JPEG) to PDF. Returns `true` on success, `false` on failure. |
 | `checkPageBreak` | `(doc, y, neededSpace=20)` | If `y + neededSpace > pageHeight - 20`, adds new page and returns `30`. Otherwise returns `y`. |
